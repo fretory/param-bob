@@ -6,7 +6,26 @@
         <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(command.name) }" @click="toggleCommand(command.name)">
           <ArrowRight />
         </el-icon>
-        <h2 class="command-title">{{ command.name }}</h2>
+        <div class="editable-title" v-if="editingTitle === command.name">
+          <el-input
+            v-model="editingValue"
+            size="small"
+            @keyup.enter="confirmEdit"
+            @blur="confirmEdit"
+            ref="titleInputRef"
+          />
+        </div>
+        <div v-else class="title-wrapper">
+          <h2 class="command-title">{{ command.name }}</h2>
+          <el-button
+            v-if="!isReadOnly"
+            class="edit-btn"
+            type="primary"
+            link
+            :icon="Edit"
+            @click.stop="startEdit(command.name, command.name, 'title')"
+          />
+        </div>
         <div class="command-tags">
           <el-tag 
             v-for="tag in command.tags" 
@@ -19,7 +38,7 @@
             {{ tag }}
           </el-tag>
         </div>
-        <div class="command-actions">
+        <div class="command-actions" v-if="!isReadOnly">
           <el-button
             type="primary"
             link
@@ -42,17 +61,48 @@
 
     <!-- 命令内容区 -->
     <div v-show="!isCollapsed(command.name)" class="command-content">
-      <!-- 命令描述 -->
-      <div class="command-description">
-        {{ command.description }}
+      <div class="description-wrapper">
+        <div class="command-description" v-if="editingTitle !== `${command.name}-desc`">
+          {{ command.description }}
+          <el-button
+            v-if="!isReadOnly"
+            class="edit-btn"
+            type="primary"
+            link
+            :icon="Edit"
+            @click.stop="startEdit(command.name, command.description, 'description')"
+          />
+        </div>
+        <div v-else class="editable-description">
+          <el-input
+            v-model="editingValue"
+            type="textarea"
+            :rows="3"
+            @keyup.enter="confirmEdit"
+            @blur="confirmEdit"
+            ref="descInputRef"
+          />
+        </div>
       </div>
       
       <!-- 一级命令参数区 -->
-      <div v-if="command.parameters" class="command-params-section">
-        <div class="section-title">命令参数</div>
+      <div class="command-params-section">
+        <div class="section-title">
+          命令参数
+          <el-button
+            v-if="!isReadOnly"
+            class="add-param-btn"
+            type="primary"
+            link
+            :icon="Plus"
+            @click="handleAddParameter(command)"
+          >
+            新增参数
+          </el-button>
+        </div>
         <div class="params-table">
-          <el-table :data="command.parameters" border>
-            <el-table-column width="50">
+          <el-table :data="command.parameters || []" border>
+            <el-table-column v-if="!isReadOnly" width="50">
               <template #default="scope">
                 <el-checkbox
                   v-model="scope.row.enabled"
@@ -60,12 +110,96 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column prop="param" label="param" />
-            <el-table-column prop="type" label="type" />
-            <el-table-column prop="description" label="description" />
-            <el-table-column prop="required" label="required">
+            <el-table-column v-if="!isReadOnly" width="50">
               <template #default="scope">
-                {{ scope.row.required ? 'true' : 'false' }}
+                <el-button
+                  v-if="!isReadOnly"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDeleteParameter(command, scope.$index)"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="param">
+              <template #default="scope">
+                <div v-if="editingParam === `${command.name}-${scope.row.param}`">
+                  <el-input 
+                    v-model="editingValue"
+                    size="small"
+                    @keyup.enter="confirmParamEdit(scope.row)"
+                    @blur="confirmParamEdit(scope.row)"
+                  />
+                </div>
+                <div v-else class="param-cell">
+                  {{ scope.row.param }}
+                  <el-button
+                    v-if="!isReadOnly"
+                    class="edit-btn"
+                    type="primary"
+                    link
+                    :icon="Edit"
+                    @click.stop="startParamEdit(`${command.name}-${scope.row.param}`, scope.row.param, 'param', scope.row)"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="type">
+              <template #default="scope">
+                <div v-if="editingParam === `${command.name}-${scope.row.param}-type`">
+                  <el-select 
+                    v-model="editingValue"
+                    size="small"
+                    @change="confirmParamEdit(scope.row)"
+                    @blur="confirmParamEdit(scope.row)"
+                  >
+                    <el-option label="string" value="string" />
+                    <el-option label="number" value="number" />
+                    <el-option label="boolean" value="boolean" />
+                  </el-select>
+                </div>
+                <div v-else class="param-cell">
+                  {{ scope.row.type }}
+                  <el-button
+                    v-if="!isReadOnly"
+                    class="edit-btn"
+                    type="primary"
+                    link
+                    :icon="Edit"
+                    @click.stop="startParamEdit(`${command.name}-${scope.row.param}-type`, scope.row.type, 'type', scope.row)"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="description">
+              <template #default="scope">
+                <div v-if="editingParam === `${command.name}-${scope.row.param}-desc`">
+                  <el-input 
+                    v-model="editingValue"
+                    size="small"
+                    @keyup.enter="confirmParamEdit(scope.row)"
+                    @blur="confirmParamEdit(scope.row)"
+                  />
+                </div>
+                <div v-else class="param-cell">
+                  {{ scope.row.description }}
+                  <el-button
+                    v-if="!isReadOnly"
+                    class="edit-btn"
+                    type="primary"
+                    link
+                    :icon="Edit"
+                    @click.stop="startParamEdit(`${command.name}-${scope.row.param}-desc`, scope.row.description, 'description', scope.row)"
+                  />
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="required" width="100">
+              <template #default="scope">
+                <el-switch 
+                  v-model="scope.row.required"
+                  @change="handleParamRequiredChange(scope.row)"
+                />
               </template>
             </el-table-column>
             <el-table-column prop="value" label="your value">
@@ -87,7 +221,7 @@
           :command-parameters="command.parameters"
           :is-dark="isDark"
           @clear-current="clearCurrentCommand"
-          @go-to-parent="handleGoToParent"
+          @go-to-parent="() => handleGoToParent(command.name)"
           @clear-all="clearAllCommands"
           @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, command.name)"
         />
@@ -100,14 +234,31 @@
             v-for="subCmd in command.subCommands" 
             :key="subCmd.name"
             class="sub-command-section"
+            :id="`${command.name}-${subCmd.name}`"
           >
             <div class="sub-command-header">
               <div class="sub-command-title-group">
-                <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}`) }" @click="toggleCommand(`${command.name}-${subCmd.name}`)">
+                <el-icon 
+                  class="collapse-icon" 
+                  :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}`) }"
+                  @click.stop="toggleCommand(`${command.name}-${subCmd.name}`)"
+                >
                   <ArrowRight />
                 </el-icon>
-                <h3 class="sub-command-title">{{ command.name }} {{ subCmd.name }}</h3>
-                <div class="command-actions">
+                <div class="title-wrapper">
+                  <h3 class="sub-command-title" @click.stop="scrollToCommand(`${command.name}-${subCmd.name}`)">
+                    {{ command.name }} {{ subCmd.name }}
+                  </h3>
+                  <el-button
+                    v-if="!isReadOnly"
+                    class="edit-btn"
+                    type="primary"
+                    link
+                    :icon="Edit"
+                    @click.stop="startEdit(`${command.name}-${subCmd.name}`, subCmd.name, 'title')"
+                  />
+                </div>
+                <div class="command-actions" v-if="!isReadOnly">
                   <el-button
                     type="primary"
                     link
@@ -129,14 +280,41 @@
             </div>
 
             <div v-show="!isCollapsed(`${command.name}-${subCmd.name}`)" class="sub-command-content">
-              <p class="sub-command-desc">{{ subCmd.description }}</p>
+              <div class="command-description" 
+                @dblclick="startEdit(`${command.name}-${subCmd.name}`, subCmd.description, 'description')" 
+                v-if="editingTitle !== `${command.name}-${subCmd.name}-desc`"
+              >
+                {{ subCmd.description }}
+              </div>
+              <div v-else class="editable-description">
+                <el-input
+                  v-model="editingValue"
+                  type="textarea"
+                  :rows="3"
+                  @keyup.enter="confirmEdit"
+                  @blur="confirmEdit"
+                  ref="descInputRef"
+                />
+              </div>
               
               <!-- 二级命令参数 -->
-              <div v-if="subCmd.parameters" class="params-table">
-                <div class="section-title">命令参数</div>
+              <div class="params-table">
+                <div class="section-title">
+                  命令参数
+                  <el-button
+                    v-if="!isReadOnly"
+                    class="add-param-btn"
+                    type="primary"
+                    link
+                    :icon="Plus"
+                    @click="handleAddParameter(subCmd)"
+                  >
+                    新增参数
+                  </el-button>
+                </div>
                 <div class="params-table">
-                  <el-table :data="subCmd.parameters" border>
-                    <el-table-column width="50">
+                  <el-table :data="subCmd.parameters || []" border>
+                    <el-table-column v-if="!isReadOnly" width="50">
                       <template #default="scope">
                         <el-checkbox
                           v-model="scope.row.enabled"
@@ -144,12 +322,96 @@
                         />
                       </template>
                     </el-table-column>
-                    <el-table-column prop="param" label="param" />
-                    <el-table-column prop="type" label="type" />
-                    <el-table-column prop="description" label="description" />
-                    <el-table-column prop="required" label="required">
+                    <el-table-column v-if="!isReadOnly" width="50">
                       <template #default="scope">
-                        {{ scope.row.required ? 'true' : 'false' }}
+                        <el-button
+                          v-if="!isReadOnly"
+                          type="danger"
+                          link
+                          :icon="Delete"
+                          @click="handleDeleteParameter(subCmd, scope.$index)"
+                        />
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="param">
+                      <template #default="scope">
+                        <div v-if="editingParam === `${command.name}-${subCmd.name}-${scope.row.param}`">
+                          <el-input 
+                            v-model="editingValue"
+                            size="small"
+                            @keyup.enter="confirmParamEdit(scope.row)"
+                            @blur="confirmParamEdit(scope.row)"
+                          />
+                        </div>
+                        <div v-else class="param-cell">
+                          {{ scope.row.param }}
+                          <el-button
+                            v-if="!isReadOnly"
+                            class="edit-btn"
+                            type="primary"
+                            link
+                            :icon="Edit"
+                            @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${scope.row.param}`, scope.row.param, 'param', scope.row)"
+                          />
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="type">
+                      <template #default="scope">
+                        <div v-if="editingParam === `${command.name}-${subCmd.name}-${scope.row.param}-type`">
+                          <el-select 
+                            v-model="editingValue"
+                            size="small"
+                            @change="confirmParamEdit(scope.row)"
+                            @blur="confirmParamEdit(scope.row)"
+                          >
+                            <el-option label="string" value="string" />
+                            <el-option label="number" value="number" />
+                            <el-option label="boolean" value="boolean" />
+                          </el-select>
+                        </div>
+                        <div v-else class="param-cell">
+                          {{ scope.row.type }}
+                          <el-button
+                            v-if="!isReadOnly"
+                            class="edit-btn"
+                            type="primary"
+                            link
+                            :icon="Edit"
+                            @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${scope.row.param}-type`, scope.row.type, 'type', scope.row)"
+                          />
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="description">
+                      <template #default="scope">
+                        <div v-if="editingParam === `${command.name}-${subCmd.name}-${scope.row.param}-desc`">
+                          <el-input 
+                            v-model="editingValue"
+                            size="small"
+                            @keyup.enter="confirmParamEdit(scope.row)"
+                            @blur="confirmParamEdit(scope.row)"
+                          />
+                        </div>
+                        <div v-else class="param-cell">
+                          {{ scope.row.description }}
+                          <el-button
+                            v-if="!isReadOnly"
+                            class="edit-btn"
+                            type="primary"
+                            link
+                            :icon="Edit"
+                            @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${scope.row.param}-desc`, scope.row.description, 'description', scope.row)"
+                          />
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="required" width="100">
+                      <template #default="scope">
+                        <el-switch 
+                          v-model="scope.row.required"
+                          @change="handleParamRequiredChange(scope.row)"
+                        />
                       </template>
                     </el-table-column>
                     <el-table-column prop="value" label="your value">
@@ -162,99 +424,222 @@
                     </el-table-column>
                   </el-table>
                 </div>
-              </div>
 
-              <!-- 二级命令预览（当没有三级命令时） -->
-              <command-preview 
-                v-if="!subCmd.subCommands"
-                :global-parameters="globalParameters"
-                :command-path="`${command.name} ${subCmd.name}`"
-                :inherited-parameters="getInheritedParameters(command, subCmd)"
-                :command-parameters="subCmd.parameters || []"
-                :is-dark="isDark"
-                @clear-current="clearCurrentCommand"
-                @go-to-parent="handleGoToParent"
-                @clear-all="clearAllCommands"
-                @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}`)"
-              />
+                <!-- 二级命令预览（当没有三级命令时） -->
+                <command-preview 
+                  v-if="!subCmd.subCommands"
+                  :global-parameters="globalParameters"
+                  :command-path="`${command.name} ${subCmd.name}`"
+                  :inherited-parameters="getInheritedParameters(command, subCmd)"
+                  :command-parameters="subCmd.parameters || []"
+                  :is-dark="isDark"
+                  @clear-current="clearCurrentCommand"
+                  @go-to-parent="() => scrollToCommand(command.name)"
+                  @clear-all="clearAllCommands"
+                  @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}`)"
+                />
 
-              <!-- 三级命令列表 -->
-              <template v-if="subCmd.subCommands">
-                <div 
-                  v-for="subSubCmd in subCmd.subCommands" 
-                  :key="subSubCmd.name"
-                  class="sub-sub-command"
-                  :id="`${command.name}-${subCmd.name}-${subSubCmd.name}`"
-                >
-                  <!-- 三级命令标题 -->
-                  <div class="sub-sub-command-header" @click="toggleCommand(`${command.name}-${subCmd.name}-${subSubCmd.name}`)">
-                    <div class="sub-sub-command-title-group">
-                      <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`) }">
-                        <ArrowRight />
-                      </el-icon>
-                      <h4 class="sub-sub-command-title">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</h4>
-                      <div class="command-actions">
-                        <el-button
-                          type="danger"
-                          link
-                          :icon="Delete"
-                          @click.stop="confirmDelete(`${command.name}-${subCmd.name}-${subSubCmd.name}`)"
-                        >
-                          删除命令
-                        </el-button>
+                <!-- 三级命令列表 -->
+                <template v-if="subCmd.subCommands">
+                  <div 
+                    v-for="subSubCmd in subCmd.subCommands" 
+                    :key="subSubCmd.name"
+                    class="sub-sub-command"
+                    :id="`${command.name}-${subCmd.name}-${subSubCmd.name}`"
+                  >
+                    <!-- 三级命令标题 -->
+                    <div class="sub-sub-command-header" @click="toggleCommand(`${command.name}-${subCmd.name}-${subSubCmd.name}`)">
+                      <div class="sub-sub-command-title-group">
+                        <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`) }">
+                          <ArrowRight />
+                        </el-icon>
+                        <div class="title-wrapper">
+                          <h4 class="sub-sub-command-title">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</h4>
+                          <el-button
+                            v-if="!isReadOnly"
+                            class="edit-btn"
+                            type="primary"
+                            link
+                            :icon="Edit"
+                            @click.stop="startEdit(`${command.name}-${subCmd.name}-${subSubCmd.name}`, subSubCmd.name, 'title')"
+                          />
+                        </div>
+                        <div class="command-actions" v-if="!isReadOnly">
+                          <el-button
+                            type="danger"
+                            link
+                            :icon="Delete"
+                            @click.stop="confirmDelete(`${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+                          >
+                            删除命令
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-show="!isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`)" class="sub-sub-command-content">
+                      <div class="command-description" 
+                        @dblclick="startEdit(`${command.name}-${subCmd.name}-${subSubCmd.name}`, subSubCmd.description, 'description')" 
+                        v-if="editingTitle !== `${command.name}-${subCmd.name}-${subSubCmd.name}-desc`"
+                      >
+                        {{ subSubCmd.description }}
+                      </div>
+                      <div v-else class="editable-description">
+                        <el-input
+                          v-model="editingValue"
+                          type="textarea"
+                          :rows="3"
+                          @keyup.enter="confirmEdit"
+                          @blur="confirmEdit"
+                          ref="descInputRef"
+                        />
+                      </div>
+                      
+                      <!-- 三级命令参数 -->
+                      <div class="params-table">
+                        <div class="section-title">
+                          命令参数
+                          <el-button
+                            v-if="!isReadOnly"
+                            class="add-param-btn"
+                            type="primary"
+                            link
+                            :icon="Plus"
+                            @click="handleAddParameter(subSubCmd)"
+                          >
+                            新增参数
+                          </el-button>
+                        </div>
+                        <div class="params-table">
+                          <el-table :data="subSubCmd.parameters || []" border>
+                            <el-table-column v-if="!isReadOnly" width="50">
+                              <template #default="scope">
+                                <el-checkbox
+                                  v-model="scope.row.enabled"
+                                  :disabled="scope.row.required"
+                                />
+                              </template>
+                            </el-table-column>
+                            <el-table-column v-if="!isReadOnly" width="50">
+                              <template #default="scope">
+                                <el-button
+                                  v-if="!isReadOnly"
+                                  type="danger"
+                                  link
+                                  :icon="Delete"
+                                  @click="handleDeleteParameter(subSubCmd, scope.$index)"
+                                />
+                              </template>
+                            </el-table-column>
+                            <el-table-column label="param">
+                              <template #default="scope">
+                                <div v-if="editingParam === `${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}`">
+                                  <el-input 
+                                    v-model="editingValue"
+                                    size="small"
+                                    @keyup.enter="confirmParamEdit(scope.row)"
+                                    @blur="confirmParamEdit(scope.row)"
+                                  />
+                                </div>
+                                <div v-else class="param-cell">
+                                  {{ scope.row.param }}
+                                  <el-button
+                                    v-if="!isReadOnly"
+                                    class="edit-btn"
+                                    type="primary"
+                                    link
+                                    :icon="Edit"
+                                    @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}`, scope.row.param, 'param', scope.row)"
+                                  />
+                                </div>
+                              </template>
+                            </el-table-column>
+                            <el-table-column label="type">
+                              <template #default="scope">
+                                <div v-if="editingParam === `${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}-type`">
+                                  <el-select 
+                                    v-model="editingValue"
+                                    size="small"
+                                    @change="confirmParamEdit(scope.row)"
+                                    @blur="confirmParamEdit(scope.row)"
+                                  >
+                                    <el-option label="string" value="string" />
+                                    <el-option label="number" value="number" />
+                                    <el-option label="boolean" value="boolean" />
+                                  </el-select>
+                                </div>
+                                <div v-else class="param-cell">
+                                  {{ scope.row.type }}
+                                  <el-button
+                                    v-if="!isReadOnly"
+                                    class="edit-btn"
+                                    type="primary"
+                                    link
+                                    :icon="Edit"
+                                    @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}-type`, scope.row.type, 'type', scope.row)"
+                                  />
+                                </div>
+                              </template>
+                            </el-table-column>
+                            <el-table-column label="description">
+                              <template #default="scope">
+                                <div v-if="editingParam === `${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}-desc`">
+                                  <el-input 
+                                    v-model="editingValue"
+                                    size="small"
+                                    @keyup.enter="confirmParamEdit(scope.row)"
+                                    @blur="confirmParamEdit(scope.row)"
+                                  />
+                                </div>
+                                <div v-else class="param-cell">
+                                  {{ scope.row.description }}
+                                  <el-button
+                                    v-if="!isReadOnly"
+                                    class="edit-btn"
+                                    type="primary"
+                                    link
+                                    :icon="Edit"
+                                    @click.stop="startParamEdit(`${command.name}-${subCmd.name}-${subSubCmd.name}-${scope.row.param}-desc`, scope.row.description, 'description', scope.row)"
+                                  />
+                                </div>
+                              </template>
+                            </el-table-column>
+                            <el-table-column label="required" width="100">
+                              <template #default="scope">
+                                <el-switch 
+                                  v-model="scope.row.required"
+                                  @change="handleParamRequiredChange(scope.row)"
+                                />
+                              </template>
+                            </el-table-column>
+                            <el-table-column prop="value" label="your value">
+                              <template #default="scope">
+                                <el-input 
+                                  v-model="scope.row.value"
+                                  @input="handleParamInput(scope.row)"
+                                />
+                              </template>
+                            </el-table-column>
+                          </el-table>
+                        </div>
+
+                        <!-- 三级命令预览 -->
+                        <command-preview 
+                          :global-parameters="globalParameters"
+                          :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
+                          :inherited-parameters="getInheritedParameters(command, subCmd)"
+                          :command-parameters="subSubCmd.parameters"
+                          :is-dark="isDark"
+                          @clear-current="clearCurrentCommand"
+                          @go-to-parent="() => scrollToCommand(`${command.name}-${subCmd.name}`)"
+                          @clear-all="clearAllCommands"
+                          @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+                        />
                       </div>
                     </div>
                   </div>
-
-                  <div v-show="!isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`)" class="sub-sub-command-content">
-                    <p class="sub-sub-command-desc">{{ subSubCmd.description }}</p>
-                    
-                    <!-- 三级命令参数 -->
-                    <div v-if="subSubCmd.parameters" class="params-table">
-                      <div class="section-title">命令参数</div>
-                      <el-table :data="subSubCmd.parameters" border>
-                        <el-table-column width="50">
-                          <template #default="scope">
-                            <el-checkbox
-                              v-model="scope.row.enabled"
-                              :disabled="scope.row.required"
-                            />
-                          </template>
-                        </el-table-column>
-                        <el-table-column prop="param" label="param" />
-                        <el-table-column prop="type" label="type" />
-                        <el-table-column prop="description" label="description" />
-                        <el-table-column prop="required" label="required">
-                          <template #default="scope">
-                            {{ scope.row.required ? 'true' : 'false' }}
-                          </template>
-                        </el-table-column>
-                        <el-table-column prop="value" label="your value">
-                          <template #default="scope">
-                            <el-input 
-                              v-model="scope.row.value"
-                              @input="handleParamInput(scope.row)"
-                            />
-                          </template>
-                        </el-table-column>
-                      </el-table>
-                    </div>
-
-                    <!-- 三级命令预览 -->
-                    <command-preview 
-                      :global-parameters="globalParameters"
-                      :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
-                      :inherited-parameters="getInheritedParameters(command, subCmd)"
-                      :command-parameters="subSubCmd.parameters"
-                      :is-dark="isDark"
-                      @clear-current="clearCurrentCommand"
-                      @go-to-parent="handleGoToParent"
-                      @clear-all="clearAllCommands"
-                      @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}-${subSubCmd.name}`)"
-                    />
-                  </div>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -265,6 +650,7 @@
     <command-editor
       v-model:visible="isSubCommandEditorVisible"
       :is-dark="isDark"
+      :is-read-only="isReadOnly"
       :existing-commands="existingCommands"
       :parent-command="selectedParentCommand"
       @submit="handleAddSubCommand"
@@ -273,12 +659,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed, nextTick, h } from 'vue'
 import { defineProps, defineEmits } from 'vue'
 import type { Command, SubCommand, Parameter } from '../types/config'
 import CommandPreview from './CommandPreview.vue'
-import { Back, Link, ArrowRight, Plus, Delete } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Back, Link, ArrowRight, Plus, Delete, Edit } from '@element-plus/icons-vue'
+import { ElInput, ElMessage, ElMessageBox } from 'element-plus'
 import CommandEditor from './CommandEditor.vue'
 
 const props = defineProps<{
@@ -286,20 +672,33 @@ const props = defineProps<{
   globalParameters: { name: string; value: string }[];
   isDark?: boolean;
   existingCommands?: Command[];
+  isReadOnly?: boolean;
 }>()
 
-const emit = defineEmits(['addToCommandSteps', 'addSubCommand', 'deleteCommand'])
+const emit = defineEmits(['addToCommandSteps', 'addSubCommand', 'deleteCommand', 'updateCommand'])
 
 // 折叠状态管理
 const collapsedStates = ref<Set<string>>(new Set())
 
 // 切换折叠状态
 const toggleCommand = (commandPath: string) => {
+ 
+  
   if (collapsedStates.value.has(commandPath)) {
+   
     collapsedStates.value.delete(commandPath)
   } else {
+    
     collapsedStates.value.add(commandPath)
   }
+  
+ 
+  
+  // 添加延时后滚动到目标位置
+  setTimeout(() => {
+    
+    scrollToCommand(commandPath)
+  }, 50)
 }
 
 // 检查是否折叠
@@ -316,7 +715,7 @@ watch(() => props.command, () => {
 const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter[] => {
   const inheritedParams: Parameter[] = []
   
-  // 从一级命令继承所有参数
+  // 从一级命令继承有参数
   if (command.parameters) {
     inheritedParams.push(...command.parameters)
   }
@@ -334,15 +733,8 @@ const clearCurrentCommand = () => {
 
 // 处理返回父命令
 const handleGoToParent = (parentPath: string) => {
-  const element = document.getElementById(parentPath)
-  if (element) {
-    const offset = 20
-    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
-    window.scrollTo({
-      top: elementPosition - offset,
-      behavior: 'smooth'
-    })
-  }
+ 
+  scrollToCommand(parentPath)
 }
 
 // 清空所有命令的输入
@@ -406,7 +798,7 @@ const copyLink = (id: string) => {
 
 // 添加参数输入处的函数
 const handleParamInput = (param: Parameter) => {
-  // 如果输入了值且参数未启用且不是必需参数，则自动启用
+  // 如果输入了值且参数未启用且不是必需参数则自动启用
   if (param.value && !param.enabled && !param.required) {
     param.enabled = true
   }
@@ -416,7 +808,7 @@ const handleParamInput = (param: Parameter) => {
   }
 }
 
-// 添加新的状态
+// 添加的状态
 const isSubCommandEditorVisible = ref(false)
 const selectedParentCommand = ref('')
 
@@ -434,7 +826,7 @@ const handleAddSubCommand = (newCommand: Command) => {
   })
 }
 
-// 从父组件获取所有命令列表
+// 从父组获取所有命令列表
 const existingCommands = computed(() => props.existingCommands || [])
 
 // 添加删除确认方法
@@ -460,6 +852,267 @@ const confirmDelete = async (commandPath: string) => {
   } catch {
     // 用户取消删除
   }
+}
+
+// 添加编辑相关的状态
+const editingTitle = ref('')
+const editingValue = ref('')
+const editingType = ref<'title' | 'description'>('title')
+const titleInputRef = ref<InstanceType<typeof ElInput> | null>(null)
+const descInputRef = ref<InstanceType<typeof ElInput> | null>(null)
+
+// 开始编辑
+const startEdit = (id: string, value: string, type: 'title' | 'description') => {
+  editingTitle.value = type === 'description' ? `${id}-desc` : id
+  editingValue.value = value
+  editingType.value = type
+
+  // 等待 DOM 更新后聚焦输入框
+  nextTick(() => {
+    if (type === 'title') {
+      titleInputRef.value?.focus()
+    } else {
+      descInputRef.value?.focus()
+    }
+  })
+}
+
+// 确认编辑
+const confirmEdit = async () => {
+  if (!editingValue.value.trim()) {
+    ElMessage.error('内容不能为空')
+    return
+  }
+
+  if (editingType.value === 'title') {
+    // 如果是修改标题，需要二次确认
+    try {
+      await ElMessageBox.confirm(
+        '修改命令称可能会影响现有的命令引用，是否继续？',
+        '确认修改',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+          customClass: props.isDark ? 'dark-message-box' : ''
+        }
+      )
+      
+      // 发出更新事件
+      emit('updateCommand', {
+        commandPath: editingTitle.value,
+        field: 'name',
+        value: editingValue.value.trim()
+      })
+    } catch {
+      // 用户取消修改
+      editingValue.value = props.command.name
+    }
+  } else {
+    // 直接更新描述
+    emit('updateCommand', {
+      commandPath: editingTitle.value.replace('-desc', ''),
+      field: 'description',
+      value: editingValue.value.trim()
+    })
+  }
+
+  // 出编辑状态
+  editingTitle.value = ''
+  editingValue.value = ''
+}
+
+// 添加参数编辑相关的态
+const editingParam = ref('')
+const editingParamField = ref<'param' | 'type' | 'description' | null>(null)
+const currentEditingParam = ref<Parameter | null>(null)
+
+// 开始编辑参数
+const startParamEdit = (id: string, value: string, field: 'param' | 'type' | 'description', param: Parameter) => {
+  editingParam.value = id
+  editingValue.value = value
+  editingParamField.value = field
+  currentEditingParam.value = param
+}
+
+// 确认参数编辑
+const confirmParamEdit = async (param: Parameter) => {
+  if (!editingValue.value.trim()) {
+    ElMessage.error('内容不能为空')
+    return
+  }
+
+  // 更新参数值
+  if (editingParamField.value) {
+    param[editingParamField.value] = editingValue.value.trim()
+  }
+
+  // 重置编辑状态
+  editingParam.value = ''
+  editingValue.value = ''
+  editingParamField.value = null
+  currentEditingParam.value = null
+}
+
+// 处理必填状态化
+const handleParamRequiredChange = (param: Parameter) => {
+  if (param.required) {
+    param.enabled = true
+  }
+}
+
+// 添加参数
+const handleAddParameter = async (targetCommand: Command | SubCommand) => {
+  const newParam = {
+    param: '',
+    type: 'string',
+    description: '',
+    required: false,
+    default: '',
+    value: '',
+    enabled: true
+  }
+
+  // 验证参数名称唯一性
+  const validateParam = (param: string, description: string): boolean => {
+    if (!param.match(/^[a-z][a-z0-9-]*$/)) {
+      ElMessage.error('参数名称只能包含小写字母、数字和横杠，且必须以字母开头')
+      return false
+    }
+    
+    if (targetCommand.parameters?.some(p => p.param === param)) {
+      ElMessage.error('参数名称已存在')
+      return false
+    }
+
+    if (!description.trim()) {
+      ElMessage.error('参数描述不能为空')
+      return false
+    }
+    
+    return true
+  }
+
+  try {
+    const { value: formValues } = await ElMessageBox({
+      title: '新增参数',
+      message: h('div', { style: 'width: 100%;' }, [
+        h('div', { style: 'margin-bottom: 15px;' }, [
+          h('div', { style: 'margin-bottom: 10px; font-weight: bold;' }, '参数名称：'),
+          h('input', {
+            id: 'paramName',
+            class: 'el-input__inner',
+            style: `
+              width: 100%;
+              height: 32px;
+              padding: 0 12px;
+              border: 1px solid var(--el-border-color);
+              border-radius: 4px;
+              box-sizing: border-box;
+              color: var(--el-text-color-primary);
+              background-color: var(--el-input-bg-color);
+              margin: 0;
+            `,
+            placeholder: '请输入参数名称'
+          })
+        ]),
+        h('div', null, [
+          h('div', { style: 'margin-bottom: 10px; font-weight: bold;' }, '参数描述：'),
+          h('textarea', {
+            id: 'paramDesc',
+            class: 'el-textarea__inner',
+            style: `
+              width: 100%;
+              min-height: 120px;
+              padding: 8px 12px;
+              resize: vertical;
+              border: 1px solid var(--el-border-color);
+              border-radius: 4px;
+              box-sizing: border-box;
+              color: var(--el-text-color-primary);
+              background-color: var(--el-input-bg-color);
+              margin: 0;
+            `,
+            placeholder: '请输入参��描述'
+          })
+        ])
+      ]),
+      showCancelButton: true,
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      customClass: props.isDark ? 'dark-message-box' : '',
+      customStyle: {
+        width: '500px',  // 增加弹窗宽度
+        padding: '20px'  // 增加内边距
+      },
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm') {
+          const paramName = (document.getElementById('paramName') as HTMLInputElement)?.value
+          const paramDesc = (document.getElementById('paramDesc') as HTMLTextAreaElement)?.value
+
+          if (validateParam(paramName, paramDesc)) {
+            newParam.param = paramName
+            newParam.description = paramDesc
+            if (!targetCommand.parameters) {
+              targetCommand.parameters = []
+            }
+            targetCommand.parameters.push(newParam)
+            done()
+          }
+        } else {
+          done()
+        }
+      }
+    })
+  } catch {
+    // 用户取消输入
+  }
+}
+
+// 删除参数
+const handleDeleteParameter = async (targetCommand: Command | SubCommand, index: number) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要删除此参数吗？',
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: props.isDark ? 'dark-message-box' : ''
+      }
+    )
+    
+    targetCommand.parameters?.splice(index, 1)
+  } catch {
+    // 用户取消删除
+  }
+}
+
+// 添加 scrollToCommand 方法
+const scrollToCommand = (commandPath: string) => {
+
+  
+  // 添加延时确保 DOM 已更新
+  setTimeout(() => {
+    const element = document.getElementById(commandPath)
+   
+    if (element) {
+      const headerHeight = 60  // 导航栏高度
+      const offset = 20       // 额外偏移量
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+     
+      window.scrollTo({
+        top: elementPosition - (headerHeight + offset),
+        behavior: 'smooth'
+      })
+    } else {
+      console.warn('Element not found for path:', commandPath)
+      // 检查所有可用的锚点元素
+      const allAnchors = document.querySelectorAll('[id]')
+      
+    }
+  }, 100)
 }
 </script>
 
@@ -612,7 +1265,7 @@ const confirmDelete = async (commandPath: string) => {
 
 .sub-sub-command {
   margin: 16px 0;
-  padding: 20px;
+  padding: 16px;
   background-color: var(--highlight-bg);
   border-radius: 6px;
 }
@@ -704,5 +1357,225 @@ const confirmDelete = async (commandPath: string) => {
 .sub-sub-command-title {
   margin: 0;
   flex: 1;
+}
+
+.editable-title {
+  flex: 1;
+  margin: -4px 0;
+}
+
+.editable-title .el-input {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.command-title {
+  cursor: pointer;
+}
+
+.command-title:hover {
+  color: var(--el-color-primary);
+}
+
+.command-description {
+  cursor: pointer;
+}
+
+.command-description:hover {
+  color: var(--el-color-primary);
+}
+
+.editable-description {
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  background-color: var(--secondary-bg);
+  border-radius: 8px;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.description-wrapper {
+  position: relative;
+}
+
+.edit-btn {
+  opacity: 0;
+  transition: opacity 0.3s;
+  padding: 4px;
+  font-size: 14px;
+}
+
+.title-wrapper:hover .edit-btn,
+.description-wrapper:hover .edit-btn {
+  opacity: 1;
+}
+
+.command-title,
+.sub-command-title,
+.sub-sub-command-title {
+  margin: 0;
+  cursor: default;  /* 移除鼠标手型 */
+}
+
+.command-description {
+  cursor: default;  /* 移除鼠标手型 */
+}
+
+/* 编按钮在暗色模式下的样式 */
+.dark-mode .edit-btn {
+  color: var(--text-secondary);
+}
+
+.dark-mode .edit-btn:hover {
+  color: var(--el-color-primary);
+}
+
+.param-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.param-cell .edit-btn {
+  opacity: 0;
+  transition: opacity 0.3s;
+  padding: 4px;
+  font-size: 14px;
+}
+
+.param-cell:hover .edit-btn {
+  opacity: 1;
+}
+
+/* 暗色模式下的表格编辑按钮样式 */
+.dark-mode .param-cell .edit-btn {
+  color: var(--text-secondary);
+}
+
+.dark-mode .param-cell .edit-btn:hover {
+  color: var(--el-color-primary);
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-param-btn {
+  font-size: 14px;
+  padding: 4px 8px;
+}
+
+/* 删除按钮样式 */
+.el-button.is-link.el-button--danger {
+  padding: 4px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.el-button.is-link.el-button--danger:hover {
+  color: var(--el-color-danger);
+  background-color: var(--el-color-danger-light-9);
+}
+
+/* 调整表格列宽 */
+:deep(.el-table) {
+  width: 100%;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="0"]) {  /* checkbox列 */
+  width: 40px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="1"]) {  /* 删除按钮列 */
+  width: 40px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="2"]) {  /* param列 */
+  min-width: 120px;
+  max-width: 200px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="3"]) {  /* type列 */
+  width: 100px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="4"]) {  /* description列 */
+  min-width: 200px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="5"]) {  /* required列 */
+  width: 80px;
+}
+
+:deep(.el-table .el-table__cell[data-col-index="6"]) {  /* value列 */
+  min-width: 120px;
+  max-width: 200px;
+}
+
+/* 优化表格内容显示 */
+.param-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 调整按钮大小 */
+.param-cell .edit-btn {
+  padding: 2px;
+  font-size: 12px;
+}
+
+/* 调整删除按钮 */
+.el-button.is-link.el-button--danger {
+  padding: 2px;
+  font-size: 12px;
+}
+
+/* 调整开关组件大小 */
+:deep(.el-switch) {
+  transform: scale(0.8);
+  margin: 0 -6px;
+}
+
+/* 调整输入框内边距 */
+:deep(.el-input__wrapper) {
+  padding: 0 8px;
+}
+
+/* 调整选择框大小 */
+:deep(.el-select) {
+  width: 100%;
+}
+
+/* 优化表格内容溢出处理 */
+:deep(.el-table .cell) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 调整描述列的文本换行 */
+:deep(.el-table .el-table__cell[data-col-index="4"] .cell) {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* 调整表格行 */
+:deep(.el-table__row) {
+  height: 40px;
+}
+
+/* 只读模式下隐藏编辑相关的悬浮效果 */
+.is-read-only .edit-btn,
+.is-read-only .command-actions,
+.is-read-only .param-cell .edit-btn {
+  display: none;
 }
 </style> 

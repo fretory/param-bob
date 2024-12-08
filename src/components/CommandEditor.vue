@@ -242,7 +242,15 @@ const commandForm = ref({
 const rules = {
   name: [
     { required: true, message: '请输入命令名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*$/, message: '命令名称只能包含小写字母、数字和横杠，且必须以字母开头', trigger: 'blur' },
+    { 
+      pattern: props.parentCommand 
+        ? /^[a-zA-Z][a-zA-Z0-9-]*$/  // 子命令支持大小写字母开头
+        : /^[a-z][a-z0-9-]*$/,       // 一级命令仍然只允许小写字母开头
+      message: props.parentCommand 
+        ? '命令名称只能包含字母、数字和横杠，且必须以字母开头'
+        : '命令名称只能包含小写字母、数字和横杠，且必须以字母开头',
+      trigger: 'blur' 
+    },
     {
       validator: (rule: any, value: string, callback: Function) => {
         if (props.parentCommand) {

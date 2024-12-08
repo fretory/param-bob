@@ -27,12 +27,23 @@
       <el-aside :width="isNavVisible ? '250px' : '0'" class="sidebar">
         <div class="nav-header">
           <span>{{ toolConfig?.name || 'Tools' }}</span>
-          <el-switch
-            v-model="isDarkMode"
-            inline-prompt
-            :active-icon="Moon"
-            :inactive-icon="Sunny"
-          />
+          <div class="nav-controls">
+            <el-tooltip content="只读模式" placement="bottom">
+              <el-switch
+                v-model="isReadOnly"
+                inline-prompt
+                :active-icon="Lock"
+                :inactive-icon="Edit"
+                @change="handleReadOnlyChange"
+              />
+            </el-tooltip>
+            <el-switch
+              v-model="isDarkMode"
+              inline-prompt
+              :active-icon="Moon"
+              :inactive-icon="Sunny"
+            />
+          </div>
         </div>
         
         <div class="file-operations">
@@ -53,17 +64,6 @@
                 text
               />
             </el-tooltip>
-            <el-tooltip content="恢复默认配置" placement="bottom">
-              <el-button
-                class="file-op-btn"
-                :icon="RefreshRight"
-                @click="handleResetConfig"
-                text
-              />
-            </el-tooltip>
-          </div>
-          <el-divider direction="vertical" />
-          <div class="file-operations-group">
             <el-tooltip :content="isAllExpanded ? '折叠全部' : '展开全部'" placement="bottom">
               <el-button
                 class="file-op-btn"
@@ -73,8 +73,18 @@
               />
             </el-tooltip>
           </div>
+
           <el-divider direction="vertical" />
-          <div class="file-operations-group">
+
+          <div class="file-operations-group" v-if="!isReadOnly">
+            <el-tooltip content="恢复默认配置" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="RefreshRight"
+                @click="handleResetConfig"
+                text
+              />
+            </el-tooltip>
             <el-tooltip content="新增命令" placement="bottom">
               <el-button
                 class="file-op-btn"
@@ -96,7 +106,7 @@
               <!-- 有子命令的情况 -->
               <el-sub-menu v-if="cmd.subCommands" :index="cmd.name">
                 <template #title>
-                  <span @click.stop="scrollToCommand(cmd.name, $event)">{{ cmd.name }}</span>
+                  <span @click="scrollToCommand(cmd.name)">{{ cmd.name }}</span>
                 </template>
                 <!-- 二级命令 -->
                 <template v-for="subCmd in cmd.subCommands" :key="`${cmd.name}-${subCmd.name}`">
@@ -106,7 +116,7 @@
                     :index="`${cmd.name}-${subCmd.name}`"
                   >
                     <template #title>
-                      <span @click.stop="scrollToCommand(`${cmd.name}-${subCmd.name}`, $event)">
+                      <span @click="() => handleMenuClick(`${cmd.name}-${subCmd.name}`)">
                         {{ subCmd.name }}
                       </span>
                     </template>
@@ -124,7 +134,7 @@
                   <el-menu-item
                     v-else
                     :index="`${cmd.name}-${subCmd.name}`"
-                    @click="scrollToCommand(`${cmd.name}-${subCmd.name}`)"
+                    @click="() => handleMenuClick(`${cmd.name}-${subCmd.name}`)"
                   >
                     {{ subCmd.name }}
                   </el-menu-item>
@@ -191,11 +201,13 @@
             <main-command 
               :command="cmd" 
               :is-dark="isDarkMode"
+              :is-read-only="isReadOnly"
               :global-parameters="toolSelector?.parameters || []"
               :existing-commands="commands"
               @add-to-command-steps="handleAddToCommandSteps"
               @add-sub-command="handleAddSubCommand"
               @delete-command="handleDeleteCommand"
+              @update-command="handleUpdateCommand"
             />
             <el-divider />
           </div>
@@ -214,6 +226,7 @@
   <command-editor
     v-model:visible="isCommandEditorVisible"
     :is-dark="isDarkMode"
+    :is-read-only="isReadOnly"
     :existing-commands="commands"
     @submit="handleAddCommand"
   />
@@ -222,7 +235,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight, FolderOpened, FolderAdd, DocumentAdd } from '@element-plus/icons-vue'
+import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight, FolderOpened, FolderAdd, DocumentAdd, Lock, Edit } from '@element-plus/icons-vue'
 import ToolSelector from './components/ToolSelector.vue'
 import MainCommand from './components/MainCommand.vue'
 import { loadConfig } from './utils/configLoader'
@@ -420,7 +433,7 @@ const onFileSelected = async (event: Event) => {
 // 处理文件导出
 const handleFileExport = () => {
   if (!toolConfig.value) {
-    ElMessage.warning('没有可导出的配置')
+    ElMessage.warning('没有出的配置')
     return
   }
 
@@ -456,7 +469,7 @@ const handleAddToCommandSteps = (command: string, commandPath?: string) => {
   if (commandStepsRef.value) {
     commandStepsRef.value.addCommand(command, commandPath)
     ElMessage.success('命令已添加组合')
-    // 如果全局参数栏未显示，则显示它
+    // 如果全局参数栏未显示，则显示
     if (!isParamsVisible.value) {
       isParamsVisible.value = true
     }
@@ -513,7 +526,7 @@ const handleResetConfig = async () => {
     // 清除本地缓存
     localStorage.removeItem(LOCAL_STORAGE_CONFIG_KEY)
     
-    ElMessage.success('已恢复默认配置')
+    ElMessage.success('��复默认配置')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to reset config:', error)
@@ -640,6 +653,58 @@ const handleDeleteCommand = (commandPath: string) => {
   ElMessage.success('命令删除成功')
 }
 
+// 添加处理命令更新的方法
+const handleUpdateCommand = ({ commandPath, field, value }: { commandPath: string, field: string, value: string }) => {
+  if (!toolConfig.value) return
+
+  const parts = commandPath.split('-')
+  const command = toolConfig.value.commands.find(cmd => cmd.name === parts[0])
+  
+  if (!command) return
+
+  if (parts.length === 1) {
+    // 更新一级命令
+    if (field === 'name') {
+      command.name = value
+    } else if (field === 'description') {
+      command.description = value
+    }
+  } else if (parts.length === 2) {
+    // 更新二级命令
+    const subCommand = command.subCommands?.find(sub => sub.name === parts[1])
+    if (subCommand) {
+      if (field === 'name') {
+        subCommand.name = value
+      } else if (field === 'description') {
+        subCommand.description = value
+      }
+    }
+  } else if (parts.length === 3) {
+    // 更新三级命令
+    const subCommand = command.subCommands?.find(sub => sub.name === parts[1])
+    if (subCommand) {
+      const subSubCommand = subCommand.subCommands?.find(sub => sub.name === parts[2])
+      if (subSubCommand) {
+        if (field === 'name') {
+          subSubCommand.name = value
+        } else if (field === 'description') {
+          subSubCommand.description = value
+        }
+      }
+    }
+  }
+
+  ElMessage.success('更新成功')
+}
+
+// 添加只读模式态
+const isReadOnly = ref(localStorage.getItem('isReadOnly') !== 'false') // 默认为 true
+
+// 监听只读模式变化
+const handleReadOnlyChange = (value: boolean) => {
+  localStorage.setItem('isReadOnly', value.toString())
+}
+
 watch(isDarkMode, (newValue) => {
   if (newValue) {
     document.body.classList.add('dark-mode')
@@ -647,6 +712,33 @@ watch(isDarkMode, (newValue) => {
     document.body.classList.remove('dark-mode')
   }
 }, { immediate: true })  // immediate: true 确保初始化时就执行
+
+// 添加菜单点击处理方法
+const handleMenuClick = (commandPath: string) => {
+
+  
+  // 先设置活动项
+  activeCommand.value = commandPath
+ 
+  
+  // 延迟执行滚动，确保 DOM 已更新
+  setTimeout(() => {
+    const element = document.getElementById(commandPath)
+    
+    if (element) {
+      const headerHeight = 60  // 导航栏高度
+      const offset = 20       // 额外偏移量
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+      
+      window.scrollTo({
+        top: elementPosition - (headerHeight + offset),
+        behavior: 'smooth'
+      })
+    } else {
+
+    }
+  }, 100)
+}
 </script>
 
 <style>
@@ -827,7 +919,7 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* 暗色模式下表格选中行的样式 */
+/* 暗色模式下表格选中行的样�� */
 .dark-mode .el-table tr.current-row > td.el-table__cell {
   background-color: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
@@ -1107,7 +1199,7 @@ body {
 
 /* 调整主内容区域左边距 */
 .main-content {
-  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空间 */
+  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空�� */
 }
 
 /* 响应式调整 */
@@ -1152,7 +1244,7 @@ body {
   color: var(--el-color-primary);
 }
 
-/* 确保子菜单展开时父菜单保持高亮 */
+/* 确保子菜单展开时菜单保持高亮 */
 .el-menu-item.is-active,
 .el-sub-menu.is-active > .el-sub-menu__title span {
   color: var(--el-color-primary) !important;
@@ -1200,7 +1292,7 @@ body {
   border-color: var(--border-color);
 }
 
-/* 全参��删除按钮样式 */
+/* 全参数删除按钮样式 */
 .param-delete-btn {
   opacity: 0;
   transition: all 0.3s ease;
@@ -1343,7 +1435,7 @@ body {
   color: var(--text-primary);
 }
 
-/* 导航菜单容器 */
+/* 导航菜单容 */
 .command-nav-container {
   flex: 1;
   overflow-y: auto;
@@ -1433,5 +1525,17 @@ body {
 .global-params-wrapper {
   scrollbar-width: thin; /* Firefox */
   scrollbar-color: var(--border-color) transparent; /* Firefox */
+}
+
+/* 添加导航控制样式 */
+.nav-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 调整开关组件样式 */
+.nav-controls .el-switch {
+  --el-switch-on-color: var(--el-color-primary);
 }
 </style> 
