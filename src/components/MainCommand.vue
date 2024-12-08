@@ -137,7 +137,7 @@
         </div>
         <div class="params-table">
           <el-table :data="command.parameters || []" border>
-            <el-table-column v-if="!isReadOnly" width="50">
+            <el-table-column width="50">
               <template #default="scope">
                 <el-checkbox
                   v-model="scope.row.enabled"
@@ -148,7 +148,6 @@
             <el-table-column v-if="!isReadOnly" width="50">
               <template #default="scope">
                 <el-button
-                  v-if="!isReadOnly"
                   type="danger"
                   link
                   :icon="Delete"
@@ -231,10 +230,15 @@
             </el-table-column>
             <el-table-column label="required" width="100">
               <template #default="scope">
-                <el-switch 
-                  v-model="scope.row.required"
-                  @change="handleParamRequiredChange(scope.row)"
-                />
+                <template v-if="isReadOnly">
+                  <span>{{ scope.row.required ? 'Yes' : 'No' }}</span>
+                </template>
+                <template v-else>
+                  <el-switch 
+                    v-model="scope.row.required"
+                    @change="handleParamRequiredChange(scope.row)"
+                  />
+                </template>
               </template>
             </el-table-column>
             <el-table-column prop="value" label="your value">
@@ -358,7 +362,7 @@
                 </div>
                 <div class="params-table">
                   <el-table :data="subCmd.parameters || []" border>
-                    <el-table-column v-if="!isReadOnly" width="50">
+                    <el-table-column width="50">
                       <template #default="scope">
                         <el-checkbox
                           v-model="scope.row.enabled"
@@ -369,7 +373,6 @@
                     <el-table-column v-if="!isReadOnly" width="50">
                       <template #default="scope">
                         <el-button
-                          v-if="!isReadOnly"
                           type="danger"
                           link
                           :icon="Delete"
@@ -452,10 +455,15 @@
                     </el-table-column>
                     <el-table-column label="required" width="100">
                       <template #default="scope">
-                        <el-switch 
-                          v-model="scope.row.required"
-                          @change="handleParamRequiredChange(scope.row)"
-                        />
+                        <template v-if="isReadOnly">
+                          <span>{{ scope.row.required ? 'Yes' : 'No' }}</span>
+                        </template>
+                        <template v-else>
+                          <el-switch 
+                            v-model="scope.row.required"
+                            @change="handleParamRequiredChange(scope.row)"
+                          />
+                        </template>
                       </template>
                     </el-table-column>
                     <el-table-column prop="value" label="your value">
@@ -565,7 +573,7 @@
                         </div>
                         <div class="params-table">
                           <el-table :data="subSubCmd.parameters || []" border>
-                            <el-table-column v-if="!isReadOnly" width="50">
+                            <el-table-column width="50">
                               <template #default="scope">
                                 <el-checkbox
                                   v-model="scope.row.enabled"
@@ -576,7 +584,6 @@
                             <el-table-column v-if="!isReadOnly" width="50">
                               <template #default="scope">
                                 <el-button
-                                  v-if="!isReadOnly"
                                   type="danger"
                                   link
                                   :icon="Delete"
@@ -659,10 +666,15 @@
                             </el-table-column>
                             <el-table-column label="required" width="100">
                               <template #default="scope">
-                                <el-switch 
-                                  v-model="scope.row.required"
-                                  @change="handleParamRequiredChange(scope.row)"
-                                />
+                                <template v-if="isReadOnly">
+                                  <span>{{ scope.row.required ? 'Yes' : 'No' }}</span>
+                                </template>
+                                <template v-else>
+                                  <el-switch 
+                                    v-model="scope.row.required"
+                                    @change="handleParamRequiredChange(scope.row)"
+                                  />
+                                </template>
                               </template>
                             </el-table-column>
                             <el-table-column prop="value" label="your value">
@@ -778,7 +790,7 @@ const copyLink = (id: string) => {
   navigator.clipboard.writeText(url.toString())
     .then(() => {
       ElMessage({
-        message: '链接已复制到剪���板',
+        message: '链接已复制到剪贴板',
         type: 'success',
         customClass: props.isDark ? 'dark-message' : ''
       })
@@ -878,8 +890,8 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
       cancelButtonText: '取消',
       customClass: props.isDark ? 'dark-message-box' : '',
       customStyle: {
-        width: '500px',  // 增加弹窗宽度
-        padding: '20px'  // 增加内边距
+        width: '500px',
+        padding: '20px'
       },
       beforeClose: (action, instance, done) => {
         if (action === 'confirm') {
@@ -892,7 +904,10 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
             if (!targetCommand.parameters) {
               targetCommand.parameters = []
             }
-            targetCommand.parameters.push(newParam)
+            targetCommand.parameters.push({
+              ...newParam,
+              required: false
+            })
             done()
           }
         } else {
@@ -1004,13 +1019,13 @@ const handleParamInput = (param: Parameter) => {
   if (param.value && !param.enabled && !param.required) {
     param.enabled = true
   }
-  // 如果清空了值且不是必需参数，则自动禁��
+  // 如果清空了值且不是必需参数，则自动禁
   if (!param.value && !param.required) {
     param.enabled = false
   }
 }
 
-// 添加的状态
+// 添加状态
 const isSubCommandEditorVisible = ref(false)
 const selectedParentCommand = ref('')
 
@@ -1056,7 +1071,7 @@ const confirmDelete = async (commandPath: string) => {
   }
 }
 
-// 添加��辑相关的状态
+// 添加辑相关的状态
 const editingTitle = ref('')
 const editingValue = ref('')
 const editingType = ref<'title' | 'description'>('title')
