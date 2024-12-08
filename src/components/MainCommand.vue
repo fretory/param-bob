@@ -19,15 +19,24 @@
             {{ tag }}
           </el-tag>
         </div>
-        <!-- 添加新增子命令按钮 -->
-        <el-button
-          type="primary"
-          link
-          :icon="Plus"
-          @click.stop="showAddSubCommand(command.name)"
-        >
-          新增子命令
-        </el-button>
+        <div class="command-actions">
+          <el-button
+            type="primary"
+            link
+            :icon="Plus"
+            @click.stop="showAddSubCommand(command.name)"
+          >
+            新增子命令
+          </el-button>
+          <el-button
+            type="danger"
+            link
+            :icon="Delete"
+            @click.stop="confirmDelete(command.name)"
+          >
+            删除命令
+          </el-button>
+        </div>
       </div>
     </div>
 
@@ -98,15 +107,24 @@
                   <ArrowRight />
                 </el-icon>
                 <h3 class="sub-command-title">{{ command.name }} {{ subCmd.name }}</h3>
-                <!-- 添加新增三级命令按钮 -->
-                <el-button
-                  type="primary"
-                  link
-                  :icon="Plus"
-                  @click.stop="showAddSubCommand(`${command.name}-${subCmd.name}`)"
-                >
-                  新增子命令
-                </el-button>
+                <div class="command-actions">
+                  <el-button
+                    type="primary"
+                    link
+                    :icon="Plus"
+                    @click.stop="showAddSubCommand(`${command.name}-${subCmd.name}`)"
+                  >
+                    新增子命令
+                  </el-button>
+                  <el-button
+                    type="danger"
+                    link
+                    :icon="Delete"
+                    @click.stop="confirmDelete(`${command.name}-${subCmd.name}`)"
+                  >
+                    删除命令
+                  </el-button>
+                </div>
               </div>
             </div>
 
@@ -175,6 +193,16 @@
                         <ArrowRight />
                       </el-icon>
                       <h4 class="sub-sub-command-title">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</h4>
+                      <div class="command-actions">
+                        <el-button
+                          type="danger"
+                          link
+                          :icon="Delete"
+                          @click.stop="confirmDelete(`${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+                        >
+                          删除命令
+                        </el-button>
+                      </div>
                     </div>
                   </div>
 
@@ -249,8 +277,8 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { defineProps, defineEmits } from 'vue'
 import type { Command, SubCommand, Parameter } from '../types/config'
 import CommandPreview from './CommandPreview.vue'
-import { Back, Link, ArrowRight, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Back, Link, ArrowRight, Plus, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import CommandEditor from './CommandEditor.vue'
 
 const props = defineProps<{
@@ -260,7 +288,7 @@ const props = defineProps<{
   existingCommands?: Command[];
 }>()
 
-const emit = defineEmits(['addToCommandSteps', 'addSubCommand'])
+const emit = defineEmits(['addToCommandSteps', 'addSubCommand', 'deleteCommand'])
 
 // 折叠状态管理
 const collapsedStates = ref<Set<string>>(new Set())
@@ -408,6 +436,31 @@ const handleAddSubCommand = (newCommand: Command) => {
 
 // 从父组件获取所有命令列表
 const existingCommands = computed(() => props.existingCommands || [])
+
+// 添加删除确认方法
+const confirmDelete = async (commandPath: string) => {
+  try {
+    const parts = commandPath.split('-')
+    const message = parts.length > 1 
+      ? '此操作将删除该命令及其所有子命令，是否继续？'
+      : '此操作将删除该命令及其所有子命令，是否继续？'
+
+    await ElMessageBox.confirm(
+      message,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: props.isDark ? 'dark-message-box' : ''
+      }
+    )
+    
+    emit('deleteCommand', commandPath)
+  } catch {
+    // 用户取消删除
+  }
+}
 </script>
 
 <style scoped>
@@ -624,5 +677,32 @@ const existingCommands = computed(() => props.existingCommands || [])
 .el-button.el-button--primary.is-link {
   padding: 4px 8px;
   margin-left: auto;
+}
+
+.command-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.command-actions .el-button {
+  padding: 4px 8px;
+}
+
+/* 调整标题组样式以适应新的按钮 */
+.command-title-group,
+.sub-command-title-group,
+.sub-sub-command-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.command-title,
+.sub-command-title,
+.sub-sub-command-title {
+  margin: 0;
+  flex: 1;
 }
 </style> 

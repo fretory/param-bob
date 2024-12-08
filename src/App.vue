@@ -195,6 +195,7 @@
               :existing-commands="commands"
               @add-to-command-steps="handleAddToCommandSteps"
               @add-sub-command="handleAddSubCommand"
+              @delete-command="handleDeleteCommand"
             />
             <el-divider />
           </div>
@@ -230,7 +231,7 @@ import yaml from 'js-yaml'
 import CommandSteps from './components/CommandSteps.vue'
 import CommandEditor from './components/CommandEditor.vue'
 
-// 添加 Parameter 接口���义
+// 添加 Parameter 接口定义
 interface Parameter {
   param: string
   value?: string
@@ -264,29 +265,55 @@ watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
 
-// 配置数据
+// 添加常量定义
+const LOCAL_STORAGE_CONFIG_KEY = 'tools_config'
+
+// 修改配置数据的初始化
 const toolConfig = ref<ToolConfig | null>(null)
 const commands = computed(() => toolConfig.value?.commands || [])
 
-// 加载配置文件
+// 修改加载配置文件的函数
 onMounted(async () => {
   try {
-    const config = await loadConfig('/config/tools.yaml')
-    toolConfig.value = config
-    
-    // 如果有全局参数，初始化 ToolSelector
-    if (config.globalParameters && toolSelector.value) {
-      toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
-        name: param.param,
-        value: param.value || param.default || '',
-        enabled: true
-      }))
+    // 先尝试从 localStorage 读取配置
+    const savedConfig = localStorage.getItem(LOCAL_STORAGE_CONFIG_KEY)
+    if (savedConfig) {
+      const config = JSON.parse(savedConfig)
+      toolConfig.value = config
+      
+      // 初始化全局参数
+      if (config.globalParameters && toolSelector.value) {
+        toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
+          name: param.param,
+          value: param.value || param.default || '',
+          enabled: true
+        }))
+      }
+    } else {
+      // 如果没有本地缓存，则加载默认配置
+      const config = await loadConfig('/config/tools.yaml')
+      toolConfig.value = config
+      
+      if (config.globalParameters && toolSelector.value) {
+        toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
+          name: param.param,
+          value: param.value || param.default || '',
+          enabled: true
+        }))
+      }
     }
   } catch (error) {
     console.error('Failed to load config:', error)
     ElMessage.error('加载配置文件失败')
   }
 })
+
+// 添加配置变化的监听
+watch(() => toolConfig.value, (newConfig) => {
+  if (newConfig) {
+    localStorage.setItem(LOCAL_STORAGE_CONFIG_KEY, JSON.stringify(newConfig))
+  }
+}, { deep: true })
 
 const scrollToCommand = (cmdName: string, event?: MouseEvent) => {
   if (event) {
@@ -350,7 +377,7 @@ const handleFileLoad = () => {
   fileInput.value?.click()
 }
 
-// 处理文件选择
+// 修改文件选择处理函数
 const onFileSelected = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -376,6 +403,9 @@ const onFileSelected = async (event: Event) => {
           toolSelector.value.parameters = []
         }
       }
+      
+      // 清除本地缓存
+      localStorage.removeItem(LOCAL_STORAGE_CONFIG_KEY)
       
       ElMessage.success('配置文件加载成功')
     } catch (error) {
@@ -449,10 +479,9 @@ const handleScrollToCommand = (commandPath: string) => {
   }
 }
 
-// 添加恢复默认配置的处理函数
+// 修改重置配置的处理函数
 const handleResetConfig = async () => {
   try {
-    // 弹出确认对话框
     await ElMessageBox.confirm(
       '确定要恢复默认配置吗？当前的配置将会被覆盖。',
       '恢复确认',
@@ -480,6 +509,9 @@ const handleResetConfig = async () => {
         toolSelector.value.parameters = []
       }
     }
+    
+    // 清除本地缓存
+    localStorage.removeItem(LOCAL_STORAGE_CONFIG_KEY)
     
     ElMessage.success('已恢复默认配置')
   } catch (error) {
@@ -569,6 +601,43 @@ const handleAddSubCommand = ({ parentCommand, command }: { parentCommand: string
   }
 
   ElMessage.success('子命令添加成功')
+}
+
+// 添加删除命令的方法
+const handleDeleteCommand = (commandPath: string) => {
+  if (!toolConfig.value) return
+
+  const parts = commandPath.split('-')
+  if (parts.length === 1) {
+    // 删除一级命令
+    const index = toolConfig.value.commands.findIndex(cmd => cmd.name === parts[0])
+    if (index !== -1) {
+      toolConfig.value.commands.splice(index, 1)
+    }
+  } else if (parts.length === 2) {
+    // 删除二级命令
+    const parentCmd = toolConfig.value.commands.find(cmd => cmd.name === parts[0])
+    if (parentCmd && parentCmd.subCommands) {
+      const index = parentCmd.subCommands.findIndex(sub => sub.name === parts[1])
+      if (index !== -1) {
+        parentCmd.subCommands.splice(index, 1)
+      }
+    }
+  } else if (parts.length === 3) {
+    // 删除三级命令
+    const parentCmd = toolConfig.value.commands.find(cmd => cmd.name === parts[0])
+    if (parentCmd && parentCmd.subCommands) {
+      const subCmd = parentCmd.subCommands.find(sub => sub.name === parts[1])
+      if (subCmd && subCmd.subCommands) {
+        const index = subCmd.subCommands.findIndex(sub => sub.name === parts[2])
+        if (index !== -1) {
+          subCmd.subCommands.splice(index, 1)
+        }
+      }
+    }
+  }
+
+  ElMessage.success('命令删除成功')
 }
 
 watch(isDarkMode, (newValue) => {
@@ -1131,7 +1200,7 @@ body {
   border-color: var(--border-color);
 }
 
-/* 全参数删除按钮样式 */
+/* 全参��删除按钮样式 */
 .param-delete-btn {
   opacity: 0;
   transition: all 0.3s ease;
