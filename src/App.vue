@@ -73,6 +73,17 @@
               />
             </el-tooltip>
           </div>
+          <el-divider direction="vertical" />
+          <div class="file-operations-group">
+            <el-tooltip content="新增命令" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="DocumentAdd"
+                @click="showCommandEditor"
+                text
+              />
+            </el-tooltip>
+          </div>
         </div>
 
         <div class="command-nav-container">
@@ -197,18 +208,25 @@
     style="display: none"
     @change="onFileSelected"
   >
+  <command-editor
+    v-model:visible="isCommandEditorVisible"
+    :is-dark="isDarkMode"
+    :existing-commands="commands"
+    @submit="handleAddCommand"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight, FolderOpened, FolderAdd } from '@element-plus/icons-vue'
+import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight, FolderOpened, FolderAdd, DocumentAdd } from '@element-plus/icons-vue'
 import ToolSelector from './components/ToolSelector.vue'
 import MainCommand from './components/MainCommand.vue'
 import { loadConfig } from './utils/configLoader'
 import type { ToolConfig } from './types/config'
 import yaml from 'js-yaml'
 import CommandSteps from './components/CommandSteps.vue'
+import CommandEditor from './components/CommandEditor.vue'
 
 // 添加 Parameter 接口定义
 interface Parameter {
@@ -345,7 +363,7 @@ const onFileSelected = async (event: Event) => {
       
       toolConfig.value = config
       
-      // 重置并初始化全局参数
+      // 重置并初始化全局参��
       if (toolSelector.value) {
         if (config.globalParameters) {
           toolSelector.value.parameters = config.globalParameters.map((param: { param: any; value: any; default: any }) => ({
@@ -496,6 +514,21 @@ const toggleAllMenus = () => {
 watch(() => toolConfig.value, () => {
   isAllExpanded.value = false
 }, { deep: true })
+
+// 添加状态
+const isCommandEditorVisible = ref(false)
+
+// 添加方法
+const showCommandEditor = () => {
+  isCommandEditorVisible.value = true
+}
+
+const handleAddCommand = (command: Command) => {
+  if (!toolConfig.value) return
+  
+  toolConfig.value.commands.push(command)
+  ElMessage.success('命令添加成功')
+}
 </script>
 
 <style>
