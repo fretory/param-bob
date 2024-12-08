@@ -121,7 +121,7 @@ const previewCommand = computed(() => {
       .filter(param => param.value && (param.enabled || param.required))
       .map(param => `--${param.param} ${param.value}`),
     
-    // 当前命令的��数
+    // 当前命令的参数
     ...props.commandParameters
       .filter(param => param.value && (param.enabled || param.required))
       .map(param => `--${param.param} ${param.value}`)
@@ -197,77 +197,28 @@ const confirmClearAll = async () => {
 
 // 修改验证函数
 const validateRequiredParams = async () => {
-  const commandLevels = props.commandPath.split(' ')
-  const missingParamsMap: Record<string, string[]> = {}
-  
-  // 检查当前命令的必填参数
-  const currentMissing = props.commandParameters
-    .filter(param => param.required && !param.value)
-    .map(param => param.param)
-  
-  if (currentMissing.length > 0) {
-    missingParamsMap[commandLevels.join(' ')] = currentMissing
-  }
-
-  // 检查继承的必填参数（父命令和祖父命令）
-  const inheritedMissing = props.inheritedParameters
+  // 检查命令自身的必填参数
+  const missingParams = props.commandParameters
     .filter(param => param.required && !param.value)
     .map(param => param.param)
 
-  if (inheritedMissing.length > 0) {
-    // 根据命令层级，将缺失的参数分配到对应的父命令
-    if (commandLevels.length === 3) {
-      // 三级命令情况
-      const parentCmd = commandLevels.slice(0, 2).join(' ')
-      const grandParentCmd = commandLevels[0]
-      
-      // 将继承的参数分配到对应的父命令层级
-      props.inheritedParameters
-        .filter(param => param.required && !param.value)
-        .forEach(param => {
-          // 这里需要根据参数来源判断属于哪个父命令
-          // 如果参数来自一级命令
-          if (param.source === 'parent') {
-            if (!missingParamsMap[grandParentCmd]) {
-              missingParamsMap[grandParentCmd] = []
-            }
-            missingParamsMap[grandParentCmd].push(param.param)
-          } else {
-            // 来自二级命令
-            if (!missingParamsMap[parentCmd]) {
-              missingParamsMap[parentCmd] = []
-            }
-            missingParamsMap[parentCmd].push(param.param)
-          }
-        })
-    } else if (commandLevels.length === 2) {
-      // 二级命令情况
-      const parentCmd = commandLevels[0]
-      missingParamsMap[parentCmd] = inheritedMissing
-    }
-  }
+  // 检查继承的必填参数
+  const missingInheritedParams = props.inheritedParameters
+    .filter(param => param.required && !param.value)
+    .map(param => param.param)
 
-  if (Object.keys(missingParamsMap).length > 0) {
-    // 构建消息文本，使用 HTML 格式化
-    const message = Object.entries(missingParamsMap)
-      .map(([cmdPath, params]) => 
-        `<div style="margin-bottom: 10px;">
-          <div style="font-weight: bold;">${cmdPath}:</div>
-          <pre style="margin: 5px 0 0 20px; font-family: monospace;">${params.map(param => param).join('\n')}</pre>
-        </div>`
-      )
-      .join('')
-
+  const allMissingParams = [...missingParams, ...missingInheritedParams]
+  
+  if (allMissingParams.length > 0) {
     try {
       await ElMessageBox.confirm(
-        `<div style="margin-bottom: 15px;">以下命令的必填参数未填写：</div>${message}<div style="margin-top: 15px;">是否仍然继续？</div>`,
+        `以下必填参数未填写：\n${allMissingParams.join('\n')}\n\n是否仍然继续？`,
         '缺少必填参数',
         {
           confirmButtonText: '仍然继续',
           cancelButtonText: '取消',
           type: 'warning',
-          customClass: props.isDark ? 'dark-message-box' : '',
-          dangerouslyUseHTMLString: true
+          customClass: props.isDark ? 'dark-message-box' : ''
         }
       )
       return true // 用户选择继续
@@ -412,25 +363,5 @@ const copyCommand = async () => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-/* 添加消息框内容样式 */
-.el-message-box__content {
-  white-space: pre-wrap;
-  font-family: monospace;
-}
-
-/* 暗色模式下的消息框样式调整 */
-.dark-message-box .el-message-box__content pre {
-  color: var(--text-secondary) !important;
-  margin: 0;
-  padding: 0;
-}
-
-/* 亮色模式下的消息框样式调整 */
-.el-message-box__content pre {
-  color: #606266;
-  margin: 0;
-  padding: 0;
 }
 </style> 
