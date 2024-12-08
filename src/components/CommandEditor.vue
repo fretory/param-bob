@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="dialogVisible"
-    :title="'新增命令'"
+    :title="dialogTitle"
     width="80%"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
@@ -211,6 +211,7 @@ const props = defineProps<{
   visible: boolean
   isDark?: boolean
   existingCommands?: Command[]
+  parentCommand?: string
 }>()
 
 const emit = defineEmits(['update:visible', 'submit'])
@@ -241,7 +242,40 @@ const commandForm = ref({
 const rules = {
   name: [
     { required: true, message: '请输入命令名称', trigger: 'blur' },
-    { pattern: /^[a-z][a-z0-9-]*$/, message: '命令名称只能包含小写字母、数字和横杠，且必须以字母开头', trigger: 'blur' }
+    { pattern: /^[a-z][a-z0-9-]*$/, message: '命令名称只能包含小写字母、数字和横杠，且必须以字母开头', trigger: 'blur' },
+    {
+      validator: (rule: any, value: string, callback: Function) => {
+        if (props.parentCommand) {
+          // 检查子命令名称是否已存在
+          const parentParts = props.parentCommand.split('-')
+          const parent = props.existingCommands?.find(cmd => cmd.name === parentParts[0])
+          if (parent) {
+            if (parentParts.length === 1) {
+              // 检查二级命令
+              if (parent.subCommands?.some(sub => sub.name === value)) {
+                callback(new Error('子命令名称已存在'))
+                return
+              }
+            } else if (parentParts.length === 2) {
+              // 检查三级命令
+              const subCommand = parent.subCommands?.find(sub => sub.name === parentParts[1])
+              if (subCommand?.subCommands?.some(sub => sub.name === value)) {
+                callback(new Error('子命令名称已存在'))
+                return
+              }
+            }
+          }
+        } else {
+          // 检查一级命令名称是否已存在
+          if (props.existingCommands?.some(cmd => cmd.name === value)) {
+            callback(new Error('命令名称已存在'))
+            return
+          }
+        }
+        callback()
+      },
+      trigger: 'blur'
+    }
   ],
   description: [
     { required: true, message: '请输入命令描述', trigger: 'blur' }
@@ -321,4 +355,10 @@ const resetForm = () => {
     parameters: []
   }
 }
+
+const dialogTitle = computed(() => {
+  return props.parentCommand 
+    ? `新增子命令 (${props.parentCommand})` 
+    : '新增命令'
+})
 </script> 

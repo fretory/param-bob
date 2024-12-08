@@ -1,9 +1,9 @@
 <template>
   <div class="main-command">
     <!-- 一级命令标题区 -->
-    <div class="command-section-header" @click="toggleCommand(command.name)">
+    <div class="command-section-header">
       <div class="command-title-group">
-        <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(command.name) }">
+        <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(command.name) }" @click="toggleCommand(command.name)">
           <ArrowRight />
         </el-icon>
         <h2 class="command-title">{{ command.name }}</h2>
@@ -19,6 +19,15 @@
             {{ tag }}
           </el-tag>
         </div>
+        <!-- 添加新增子命令按钮 -->
+        <el-button
+          type="primary"
+          link
+          :icon="Plus"
+          @click.stop="showAddSubCommand(command.name)"
+        >
+          新增子命令
+        </el-button>
       </div>
     </div>
 
@@ -80,17 +89,24 @@
         <div class="sub-commands-list">
           <div 
             v-for="subCmd in command.subCommands" 
-            :key="subCmd.name" 
+            :key="subCmd.name"
             class="sub-command-section"
-            :id="`${command.name}-${subCmd.name}`"
           >
-            <!-- 二级命令标题 -->
-            <div class="sub-command-header" @click="toggleCommand(`${command.name}-${subCmd.name}`)">
+            <div class="sub-command-header">
               <div class="sub-command-title-group">
-                <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}`) }">
+                <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}`) }" @click="toggleCommand(`${command.name}-${subCmd.name}`)">
                   <ArrowRight />
                 </el-icon>
                 <h3 class="sub-command-title">{{ command.name }} {{ subCmd.name }}</h3>
+                <!-- 添加新增三级命令按钮 -->
+                <el-button
+                  type="primary"
+                  link
+                  :icon="Plus"
+                  @click.stop="showAddSubCommand(`${command.name}-${subCmd.name}`)"
+                >
+                  新增子命令
+                </el-button>
               </div>
             </div>
 
@@ -216,24 +232,35 @@
         </div>
       </template>
     </div>
+
+    <!-- 添加命令编辑器组件 -->
+    <command-editor
+      v-model:visible="isSubCommandEditorVisible"
+      :is-dark="isDark"
+      :existing-commands="existingCommands"
+      :parent-command="selectedParentCommand"
+      @submit="handleAddSubCommand"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { defineProps, defineEmits } from 'vue'
 import type { Command, SubCommand, Parameter } from '../types/config'
 import CommandPreview from './CommandPreview.vue'
-import { Back, Link, ArrowRight } from '@element-plus/icons-vue'
+import { Back, Link, ArrowRight, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import CommandEditor from './CommandEditor.vue'
 
 const props = defineProps<{
   command: Command;
   globalParameters: { name: string; value: string }[];
   isDark?: boolean;
+  existingCommands?: Command[];
 }>()
 
-const emit = defineEmits(['addToCommandSteps'])
+const emit = defineEmits(['addToCommandSteps', 'addSubCommand'])
 
 // 折叠状态管理
 const collapsedStates = ref<Set<string>>(new Set())
@@ -360,6 +387,27 @@ const handleParamInput = (param: Parameter) => {
     param.enabled = false
   }
 }
+
+// 添加新的状态
+const isSubCommandEditorVisible = ref(false)
+const selectedParentCommand = ref('')
+
+// 显示添加子命令对话框
+const showAddSubCommand = (parentCommand: string) => {
+  selectedParentCommand.value = parentCommand
+  isSubCommandEditorVisible.value = true
+}
+
+// 处理添加子命令
+const handleAddSubCommand = (newCommand: Command) => {
+  emit('addSubCommand', {
+    parentCommand: selectedParentCommand.value,
+    command: newCommand
+  })
+}
+
+// 从父组件获取所有命令列表
+const existingCommands = computed(() => props.existingCommands || [])
 </script>
 
 <style scoped>
@@ -556,5 +604,25 @@ const handleParamInput = (param: Parameter) => {
 
 .sub-sub-command:last-child {
   margin-bottom: 0;
+}
+
+.command-title-group,
+.sub-command-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.command-title,
+.sub-command-title {
+  margin: 0;
+  flex: 1;
+}
+
+/* 按钮样式 */
+.el-button.el-button--primary.is-link {
+  padding: 4px 8px;
+  margin-left: auto;
 }
 </style> 

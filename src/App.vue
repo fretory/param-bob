@@ -192,7 +192,9 @@
               :command="cmd" 
               :is-dark="isDarkMode"
               :global-parameters="toolSelector?.parameters || []"
+              :existing-commands="commands"
               @add-to-command-steps="handleAddToCommandSteps"
+              @add-sub-command="handleAddSubCommand"
             />
             <el-divider />
           </div>
@@ -228,7 +230,7 @@ import yaml from 'js-yaml'
 import CommandSteps from './components/CommandSteps.vue'
 import CommandEditor from './components/CommandEditor.vue'
 
-// 添加 Parameter 接口定义
+// 添加 Parameter 接口���义
 interface Parameter {
   param: string
   value?: string
@@ -257,7 +259,7 @@ const globalParamsWidth = ref(parseInt(localStorage.getItem('paramsWidth') || '3
 const minWidth = 250
 const maxWidth = 500
 
-// 监度变并保存
+// 监听并保存
 watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
@@ -536,6 +538,37 @@ const handleAddCommand = (command: Command) => {
   toolConfig.value.commands.sort((a, b) => a.name.localeCompare(b.name))
   
   ElMessage.success('命令添加成功')
+}
+
+// 添加处理子命令的方法
+const handleAddSubCommand = ({ parentCommand, command }: { parentCommand: string, command: Command }) => {
+  if (!toolConfig.value) return
+
+  const parentParts = parentCommand.split('-')
+  const parentCommand1 = toolConfig.value.commands.find(cmd => cmd.name === parentParts[0])
+  
+  if (!parentCommand1) return
+
+  if (parentParts.length === 1) {
+    // 添加二级命令
+    if (!parentCommand1.subCommands) {
+      parentCommand1.subCommands = []
+    }
+    parentCommand1.subCommands.push(command)
+    parentCommand1.subCommands.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (parentParts.length === 2) {
+    // 添加三级命令
+    const parentCommand2 = parentCommand1.subCommands?.find(cmd => cmd.name === parentParts[1])
+    if (parentCommand2) {
+      if (!parentCommand2.subCommands) {
+        parentCommand2.subCommands = []
+      }
+      parentCommand2.subCommands.push(command)
+      parentCommand2.subCommands.sort((a, b) => a.name.localeCompare(b.name))
+    }
+  }
+
+  ElMessage.success('子命令添加成功')
 }
 
 watch(isDarkMode, (newValue) => {
@@ -1127,7 +1160,7 @@ body {
   background-color: var(--highlight-bg) !important;
 }
 
-/* 导航菜单样式优化 */
+/* 导航菜单式优化 */
 .command-nav {
   border-right: none;
   background-color: var(--primary-bg);
@@ -1318,7 +1351,7 @@ body {
   background-color: transparent;
 }
 
-/* 暗色模式下的滚动条样�� */
+/* 暗色模式下的滚动条样式 */
 .dark-mode .global-params-wrapper::-webkit-scrollbar-thumb {
   background-color: var(--border-color);
 }
