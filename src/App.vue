@@ -223,7 +223,7 @@ import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRigh
 import ToolSelector from './components/ToolSelector.vue'
 import MainCommand from './components/MainCommand.vue'
 import { loadConfig } from './utils/configLoader'
-import type { ToolConfig } from './types/config'
+import type { ToolConfig, Command } from './types/config'
 import yaml from 'js-yaml'
 import CommandSteps from './components/CommandSteps.vue'
 import CommandEditor from './components/CommandEditor.vue'
@@ -257,27 +257,18 @@ const globalParamsWidth = ref(parseInt(localStorage.getItem('paramsWidth') || '3
 const minWidth = 250
 const maxWidth = 500
 
-// 监听度变��并保存
+// 监度变并保存
 watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
 
 // 配置数据
 const toolConfig = ref<ToolConfig | null>(null)
-const commands = computed(() => {
-  if (!toolConfig.value?.commands) return []
-  
-  // 创建副本以避免修改原始数据
-  const sortedCommands = [...toolConfig.value.commands]
-  
-  // 按名称排序
-  return sortedCommands.sort((a, b) => a.name.localeCompare(b.name))
-})
+const commands = computed(() => toolConfig.value?.commands || [])
 
 // 加载配置文件
 onMounted(async () => {
   try {
-    // 默认加载 yaml 配置也可以通过环境变量或其他方式配置
     const config = await loadConfig('/config/tools.yaml')
     toolConfig.value = config
     
@@ -369,11 +360,6 @@ const onFileSelected = async (event: Event) => {
         ? JSON.parse(content)
         : yaml.load(content)
       
-      // 对加载的配置进行排序
-      if (config.commands) {
-        config.commands.sort((a: Command, b: Command) => a.name.localeCompare(b.name))
-      }
-      
       toolConfig.value = config
       
       // 重置并初始化全局参数
@@ -407,10 +393,10 @@ const handleFileExport = () => {
   }
 
   try {
-    // 创建要导出的配置副本
+    // 创建要导出的配置副本并排序
     const exportConfig = {
       ...toolConfig.value,
-      commands: [...toolConfig.value.commands] // 保持原始顺序
+      commands: [...toolConfig.value.commands].sort((a, b) => a.name.localeCompare(b.name))
     }
     
     const content = yaml.dump(exportConfig)
@@ -543,10 +529,22 @@ const showCommandEditor = () => {
 const handleAddCommand = (command: Command) => {
   if (!toolConfig.value) return
   
-  // 直接添加到末尾，保持原始顺序
+  // 添加新命令
   toolConfig.value.commands.push(command)
+  
+  // 对命令列表进行排序
+  toolConfig.value.commands.sort((a, b) => a.name.localeCompare(b.name))
+  
   ElMessage.success('命令添加成功')
 }
+
+watch(isDarkMode, (newValue) => {
+  if (newValue) {
+    document.body.classList.add('dark-mode')
+  } else {
+    document.body.classList.remove('dark-mode')
+  }
+}, { immediate: true })  // immediate: true 确保初始化时就执行
 </script>
 
 <style>
@@ -655,7 +653,7 @@ body {
   transition: all 0.3s ease;
 }
 
-/* 确保固定定在暗色模式下也正常工作 */
+/* 确保固定定在暗色模式下正常工作 */
 .dark-mode .global-params-section {
   background-color: var(--primary-bg);
 }
@@ -953,7 +951,7 @@ body {
 /* 修改浮动按钮组样式 */
 .float-controls {
   position: fixed;
-  left: 20px; /* 增加左侧距离 */
+  left: 20px; /* 增加左距离 */
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -970,7 +968,7 @@ body {
 .float-btn {
   width: 36px; /* 稍微调小按钮尺寸 */
   height: 36px;
-  background-color: var(--secondary-bg); /* 使用主题变量 */
+  background-color: var(--secondary-bg); /* 用主题变量 */
   border: 1px solid var(--border-color);
   border-radius: 6px;
   display: flex;
@@ -1005,7 +1003,7 @@ body {
   color: var(--el-color-primary);
 }
 
-/* 调整主内容区域左���边距 */
+/* 调整主内容区域左边距 */
 .main-content {
   padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空间 */
 }
@@ -1100,7 +1098,7 @@ body {
   border-color: var(--border-color);
 }
 
-/* 全局参数删除按钮样式 */
+/* 全参数删除按钮样式 */
 .param-delete-btn {
   opacity: 0;
   transition: all 0.3s ease;
@@ -1136,7 +1134,7 @@ body {
   padding: 12px 0;
 }
 
-/* ���级菜单项 */
+/* 级菜单项 */
 .command-nav .el-menu-item,
 .command-nav .el-sub-menu__title {
   height: 40px;
@@ -1274,7 +1272,7 @@ body {
   background-color: var(--primary-bg);
 }
 
-/* ���部控制栏固定 */
+/* 部控制栏固定 */
 .nav-control {
   flex-shrink: 0;
   height: 40px;
@@ -1287,7 +1285,7 @@ body {
   transition: all 0.3s ease;
 }
 
-/* 滚动条样式 */
+/* 动条样式 */
 .command-nav-container::-webkit-scrollbar {
   width: 6px;
 }
@@ -1320,7 +1318,7 @@ body {
   background-color: transparent;
 }
 
-/* 暗色模式下的滚动条样式 */
+/* 暗色模式下的滚动条样�� */
 .dark-mode .global-params-wrapper::-webkit-scrollbar-thumb {
   background-color: var(--border-color);
 }

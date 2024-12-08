@@ -6,7 +6,6 @@
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     class="command-editor"
-    :class="{ 'is-dark': isDark }"
   >
     <div class="editor-container">
       <!-- 基本信息部分 -->
@@ -149,9 +148,7 @@
 .form-section {
   flex-shrink: 0;
   padding: 20px;
-  background-color: var(--highlight-bg);
   border-radius: 8px;
-  border: 1px solid var(--border-color);
 }
 
 .params-section {
@@ -159,9 +156,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background-color: var(--highlight-bg);
   border-radius: 8px;
-  border: 1px solid var(--border-color);
   padding: 20px;
 }
 
@@ -175,7 +170,6 @@
 .section-title {
   font-size: 16px;
   font-weight: 500;
-  color: var(--text-primary);
   padding-left: 12px;
   border-left: 3px solid var(--el-color-primary);
 }
@@ -184,71 +178,6 @@
   flex: 1;
   overflow-y: auto;
   border-radius: 4px;
-}
-
-:deep(.el-form-item__label),
-:deep(.el-table),
-:deep(.el-table th),
-:deep(.el-table td) {
-  color: var(--text-primary);
-}
-
-:deep(.el-input__wrapper),
-:deep(.el-textarea__wrapper) {
-  background-color: var(--primary-bg);
-  box-shadow: 0 0 0 1px var(--border-color) inset !important;
-}
-
-:deep(.el-input__wrapper:hover),
-:deep(.el-textarea__wrapper:hover) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset !important;
-}
-
-:deep(.el-input__inner),
-:deep(.el-textarea__inner) {
-  color: var(--text-primary);
-}
-
-:deep(.el-table) {
-  --el-table-border-color: var(--border-color);
-  --el-table-header-bg-color: var(--highlight-bg);
-  --el-table-row-hover-bg-color: var(--highlight-bg);
-  background-color: var(--primary-bg);
-}
-
-:deep(.el-table th.el-table__cell) {
-  background-color: var(--highlight-bg);
-}
-
-:deep(.el-select .el-input__wrapper) {
-  background-color: var(--primary-bg);
-}
-
-:deep(.el-dialog__body) {
-  padding: 0 20px;
-}
-
-/* 暗色模式适配 */
-.command-editor.is-dark {
-  --el-dialog-bg-color: var(--secondary-bg);
-  --el-dialog-text-color: var(--text-primary);
-}
-
-.command-editor.is-dark :deep(.el-dialog__title) {
-  color: var(--text-primary);
-}
-
-:deep(.el-select-dropdown) {
-  background-color: var(--primary-bg);
-  border-color: var(--border-color);
-}
-
-:deep(.el-select-dropdown__item) {
-  color: var(--text-primary);
-}
-
-:deep(.el-select-dropdown__item.hover) {
-  background-color: var(--highlight-bg);
 }
 
 /* 必填列的标题样式 */
@@ -266,26 +195,6 @@
   top: 50%;
   transform: translateY(-50%);
 }
-
-/* 表格样式优化 */
-:deep(.el-table th) {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-:deep(.el-input.is-disabled .el-input__wrapper) {
-  background-color: var(--secondary-bg);
-}
-
-:deep(.el-table--border th.el-table__cell.is-leaf) {
-  border-right: 1px solid var(--border-color);
-}
-
-/* 输入框 placeholder 样式 */
-:deep(.el-input__inner::placeholder) {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
 </style>
 
 <script setup lang="ts">
@@ -294,6 +203,9 @@ import type { FormInstance } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { Command } from '../types/config'
+import { useDark } from '@vueuse/core'
+
+const isDark = useDark()
 
 const props = defineProps<{
   visible: boolean

@@ -12,7 +12,7 @@
             v-for="tag in command.tags" 
             :key="tag" 
             size="small"
-            :type="isDark ? 'info' : ''"
+            :type="isDark ? 'info' : 'default'"
             :effect="isDark ? 'dark' : 'light'"
             class="command-tag"
           >
