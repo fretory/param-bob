@@ -58,7 +58,7 @@
             type="primary"
             link
             :icon="Edit"
-            @click.stop="startEdit(command.name, command.description || '', 'description')"
+            @click.stop="startEdit(command.name, command.name, 'title')"
           />
         </div>
         <div class="command-tags">
@@ -97,7 +97,10 @@
     <!-- 命令内容区 -->
     <div v-show="!isCollapsed(command.name)" class="command-content">
       <div class="description-wrapper">
-        <div class="command-description" v-if="editingTitle !== `${command.name}-desc`">
+        <div class="command-description" 
+          v-if="editingTitle !== `${command.name}-desc`"
+          @dblclick="!isReadOnly && startEdit(command.name, command.description || '', 'description')"
+        >
           {{ command.description }}
           <el-button
             v-if="!isReadOnly"
@@ -105,7 +108,7 @@
             type="primary"
             link
             :icon="Edit"
-            @click.stop="startEdit(command.name, command.description, 'description')"
+            @click.stop="startEdit(command.name, command.description || '', 'description')"
           />
         </div>
         <div v-else class="editable-description">
@@ -938,7 +941,7 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
 
 /**
  * 滚动到指定命令位置
- * 支持平滑��动和位置偏移
+ * 支持平滑滚动和位置偏移
  * 
  * @param commandPath 命令路径
  */
@@ -1087,7 +1090,7 @@ const confirmDelete = async (commandPath: string) => {
   }
 }
 
-// 添加辑相关的状态
+// 添加编辑相关的状态
 const editingTitle = ref('')
 const editingValue = ref('')
 const editingType = ref<'title' | 'description'>('title')
@@ -1121,7 +1124,7 @@ const confirmEdit = async () => {
     // 如果是修改标题，需要二次确认
     try {
       await ElMessageBox.confirm(
-        '修改命令称可能会影响现有的命令引用，是否继续？',
+        '修改命令名称可能会影响现有的命令引用，是否继续？',
         '确认修改',
         {
           confirmButtonText: '确定',
@@ -1138,7 +1141,7 @@ const confirmEdit = async () => {
         value: editingValue.value.trim()
       })
     } catch {
-      // 用户取消修改
+      // 用户取消修改，恢复原值
       editingValue.value = props.command.name
     }
   } else {
@@ -1150,7 +1153,7 @@ const confirmEdit = async () => {
     })
   }
 
-  // 出编辑状态
+  // 退出编辑状态
   editingTitle.value = ''
   editingValue.value = ''
 }
