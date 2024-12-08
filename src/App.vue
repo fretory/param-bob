@@ -36,85 +36,101 @@
         </div>
         
         <div class="file-operations">
-          <el-tooltip content="加载配置文件" placement="right">
-            <el-button
-              class="file-op-btn"
-              :icon="Upload"
-              @click="handleFileLoad"
-              text
-            />
-          </el-tooltip>
-          <el-tooltip content="导出配置文件" placement="right">
-            <el-button
-              class="file-op-btn"
-              :icon="Download"
-              @click="handleFileExport"
-              text
-            />
-          </el-tooltip>
-          <el-tooltip content="恢复默认配置" placement="right">
-            <el-button
-              class="file-op-btn"
-              :icon="RefreshRight"
-              @click="handleResetConfig"
-              text
-            />
-          </el-tooltip>
+          <div class="file-operations-group">
+            <el-tooltip content="加载配置文件" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="Upload"
+                @click="handleFileLoad"
+                text
+              />
+            </el-tooltip>
+            <el-tooltip content="导出配置文件" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="Download"
+                @click="handleFileExport"
+                text
+              />
+            </el-tooltip>
+            <el-tooltip content="恢复默认配置" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="RefreshRight"
+                @click="handleResetConfig"
+                text
+              />
+            </el-tooltip>
+          </div>
+          <el-divider direction="vertical" />
+          <div class="file-operations-group">
+            <el-tooltip :content="isAllExpanded ? '折叠全部' : '展开全部'" placement="bottom">
+              <el-button
+                class="file-op-btn"
+                :icon="isAllExpanded ? FolderOpened : FolderAdd"
+                @click="toggleAllMenus"
+                text
+              />
+            </el-tooltip>
+          </div>
         </div>
 
-        <el-menu
-          :default-active="activeCommand"
-          class="command-nav"
-          :class="{ 'is-dark': isDarkMode }"
-        >
-          <template v-for="cmd in commands" :key="cmd.name">
-            <!-- 有子命令的情况 -->
-            <el-sub-menu v-if="cmd.subCommands" :index="cmd.name">
-              <template #title>
-                <span @click.stop="scrollToCommand(cmd.name, $event)">{{ cmd.name }}</span>
-              </template>
-              <!-- 二级命令 -->
-              <template v-for="subCmd in cmd.subCommands" :key="`${cmd.name}-${subCmd.name}`">
-                <!-- 有三级命令的情况 -->
-                <el-sub-menu 
-                  v-if="subCmd.subCommands" 
-                  :index="`${cmd.name}-${subCmd.name}`"
-                >
-                  <template #title>
-                    <span @click.stop="scrollToCommand(`${cmd.name}-${subCmd.name}`, $event)">
-                      {{ subCmd.name }}
-                    </span>
-                  </template>
-                  <!-- 三级命令 -->
-                  <el-menu-item
-                    v-for="subSubCmd in subCmd.subCommands"
-                    :key="`${cmd.name}-${subCmd.name}-${subSubCmd.name}`"
-                    :index="`${cmd.name}-${subCmd.name}-${subSubCmd.name}`"
-                    @click="scrollToCommand(`${cmd.name}-${subCmd.name}-${subSubCmd.name}`)"
+        <div class="command-nav-container">
+          <el-menu
+            :default-active="activeCommand"
+            class="command-nav"
+            :class="{ 'is-dark': isDarkMode }"
+          >
+            <template v-for="cmd in commands" :key="cmd.name">
+              <!-- 有子命令的情况 -->
+              <el-sub-menu v-if="cmd.subCommands" :index="cmd.name">
+                <template #title>
+                  <span @click.stop="scrollToCommand(cmd.name, $event)">{{ cmd.name }}</span>
+                </template>
+                <!-- 二级命令 -->
+                <template v-for="subCmd in cmd.subCommands" :key="`${cmd.name}-${subCmd.name}`">
+                  <!-- 有三级命令的情况 -->
+                  <el-sub-menu 
+                    v-if="subCmd.subCommands" 
+                    :index="`${cmd.name}-${subCmd.name}`"
                   >
-                    {{ subSubCmd.name }}
+                    <template #title>
+                      <span @click.stop="scrollToCommand(`${cmd.name}-${subCmd.name}`, $event)">
+                        {{ subCmd.name }}
+                      </span>
+                    </template>
+                    <!-- 三级命令 -->
+                    <el-menu-item
+                      v-for="subSubCmd in subCmd.subCommands"
+                      :key="`${cmd.name}-${subCmd.name}-${subSubCmd.name}`"
+                      :index="`${cmd.name}-${subCmd.name}-${subSubCmd.name}`"
+                      @click="scrollToCommand(`${cmd.name}-${subCmd.name}-${subSubCmd.name}`)"
+                    >
+                      {{ subSubCmd.name }}
+                    </el-menu-item>
+                  </el-sub-menu>
+                  <!-- 没有三级命令的情况 -->
+                  <el-menu-item
+                    v-else
+                    :index="`${cmd.name}-${subCmd.name}`"
+                    @click="scrollToCommand(`${cmd.name}-${subCmd.name}`)"
+                  >
+                    {{ subCmd.name }}
                   </el-menu-item>
-                </el-sub-menu>
-                <!-- 没有三级命令的情况 -->
-                <el-menu-item
-                  v-else
-                  :index="`${cmd.name}-${subCmd.name}`"
-                  @click="scrollToCommand(`${cmd.name}-${subCmd.name}`)"
-                >
-                  {{ subCmd.name }}
-                </el-menu-item>
-              </template>
-            </el-sub-menu>
-            <!-- 没有子命令的情况 -->
-            <el-menu-item 
-              v-else 
-              :index="cmd.name"
-              @click="scrollToCommand(cmd.name)"
-            >
-              {{ cmd.name }}
-            </el-menu-item>
-          </template>
-        </el-menu>
+                </template>
+              </el-sub-menu>
+              <!-- 没有子命令的情况 -->
+              <el-menu-item 
+                v-else 
+                :index="cmd.name"
+                @click="scrollToCommand(cmd.name)"
+              >
+                {{ cmd.name }}
+              </el-menu-item>
+            </template>
+          </el-menu>
+        </div>
+
         <div class="nav-control" @click="toggleNav">
           <el-icon :class="{ 'is-collapsed': !isNavVisible }">
             <Fold v-if="isNavVisible" />
@@ -186,7 +202,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight } from '@element-plus/icons-vue'
+import { Moon, Sunny, Setting, Fold, Expand, Menu, Upload, Download, RefreshRight, FolderOpened, FolderAdd } from '@element-plus/icons-vue'
 import ToolSelector from './components/ToolSelector.vue'
 import MainCommand from './components/MainCommand.vue'
 import { loadConfig } from './utils/configLoader'
@@ -223,7 +239,7 @@ const globalParamsWidth = ref(parseInt(localStorage.getItem('paramsWidth') || '3
 const minWidth = 250
 const maxWidth = 500
 
-// 监听宽度变化并保存
+// 监听度变化并保存
 watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
@@ -235,7 +251,7 @@ const commands = computed(() => toolConfig.value?.commands || [])
 // 加载配置文件
 onMounted(async () => {
   try {
-    // 默认加载 yaml 配置，也可以通过环境变量或其他方式配置
+    // 默认加载 yaml 配置也可以通过环境变量或其他方式配置
     const config = await loadConfig('/config/tools.yaml')
     toolConfig.value = config
     
@@ -450,6 +466,36 @@ const handleResetConfig = async () => {
     }
   }
 }
+
+// 修改展开/折叠全部的方法
+const isAllExpanded = ref(false)
+
+const toggleAllMenus = () => {
+  isAllExpanded.value = !isAllExpanded.value
+  const menu = document.querySelector('.command-nav')
+  if (menu) {
+    // 获取所有子菜单的标题元素
+    const subMenuTitles = menu.querySelectorAll('.el-sub-menu__title') as NodeListOf<HTMLElement>
+    subMenuTitles.forEach(title => {
+      const parent = title.parentElement
+      if (parent) {
+        const isExpanded = parent.classList.contains('is-opened')
+        if (isAllExpanded.value && !isExpanded) {
+          // 展开
+          title.click()
+        } else if (!isAllExpanded.value && isExpanded) {
+          // 折叠
+          title.click()
+        }
+      }
+    })
+  }
+}
+
+// 监听配置文件变化时重置展开状态
+watch(() => toolConfig.value, () => {
+  isAllExpanded.value = false
+}, { deep: true })
 </script>
 
 <style>
@@ -505,28 +551,28 @@ body {
   height: 100vh;
   background-color: var(--primary-bg);
   border-right: 1px solid var(--border-color);
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 1000;
-  padding: 0;
-  padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
   transition: width 0.3s ease, left 0.3s ease;
 }
 
 .nav-header {
+  flex-shrink: 0;
   height: 60px;
-  line-height: 60px;
   padding: 0 20px;
-  font-size: 18px;
-  font-weight: bold;
-  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
 }
 
 .command-nav {
   border-right: none;
   background-color: var(--primary-bg);
+  padding: 12px 0;
 }
 
 .command-nav.is-dark {
@@ -690,17 +736,17 @@ body {
   height: 100vh;
   background-color: var(--primary-bg);
   border-right: 1px solid var(--border-color);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   z-index: 900;
-  transition: width 0.05s ease;
-  padding-bottom: 40px;
   transition: width 0.3s ease, left 0.3s ease;
 }
 
 .global-params-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
-  height: 100%;
-  width: 100%;
 }
 
 /* 内容区 */
@@ -738,9 +784,12 @@ body {
   .global-params-aside {
     position: relative;
     left: 250px;
-    width: 100% !important;
     height: auto;
-    border-right: none;
+    min-height: 200px;
+  }
+
+  .global-params-wrapper {
+    max-height: calc(100vh - 80px);
   }
 
   .resizer {
@@ -785,13 +834,14 @@ body {
   background-color: var(--el-color-primary);
 }
 
-/* 控制栏样式 */
+/* 控栏样式 */
 .nav-control,
 .params-control {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  flex-shrink: 0;
   height: 40px;
   background-color: var(--highlight-bg);
   border-top: 1px solid var(--border-color);
@@ -823,7 +873,7 @@ body {
 /* 调整侧边栏样式以适应底部控制栏 */
 .sidebar,
 .global-params-aside {
-  padding-bottom: 40px; /* 为底部控制栏留出空间 */
+  padding-bottom: 0;
 }
 
 /* 过渡动画 */
@@ -906,7 +956,7 @@ body {
 
 /* 调整主内容区域左侧边距 */
 .main-content {
-  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留出空间 */
+  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空间 */
 }
 
 /* 响应式调整 */
@@ -961,28 +1011,42 @@ body {
 .file-operations {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
+  align-items: center;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
 }
 
+/* 创建一个按钮组容器 */
+.file-operations-group {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  gap: 2px;
+}
+
+/* 调整按钮样式 */
 .file-op-btn {
-  font-size: 18px;
+  padding: 6px !important;
+  height: 28px !important;
+  width: 28px !important;
+  margin: 0 !important;
+  border-radius: 4px !important;
   color: var(--text-secondary);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .file-op-btn:hover {
   color: var(--el-color-primary);
-  transform: translateY(-2px);
+  background-color: var(--highlight-bg);
+  transform: translateY(-1px);
 }
 
-.dark-mode .file-op-btn {
-  color: var(--text-secondary);
-}
-
-.dark-mode .file-op-btn:hover {
-  color: var(--el-color-primary);
+/* 分隔线样式 */
+.file-operations .el-divider--vertical {
+  height: 14px;
+  margin: 0 8px;
+  border-color: var(--border-color);
 }
 
 /* 全局参数删除按钮样式 */
@@ -1012,5 +1076,211 @@ body {
 .dark-mode .param-delete-btn:hover {
   color: var(--el-color-danger) !important;
   background-color: var(--highlight-bg) !important;
+}
+
+/* 导航菜单样式优化 */
+.command-nav {
+  border-right: none;
+  background-color: var(--primary-bg);
+  padding: 12px 0;
+}
+
+/* 一级菜单项 */
+.command-nav .el-menu-item,
+.command-nav .el-sub-menu__title {
+  height: 40px;
+  line-height: 40px;
+  padding: 0 16px !important;
+  margin: 4px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* 二级菜单项 */
+.command-nav .el-menu--inline .el-menu-item,
+.command-nav .el-menu--inline .el-sub-menu__title {
+  padding-left: 36px !important;
+  height: 36px;
+  line-height: 36px;
+  font-size: 13px;
+}
+
+/* 三级菜单项 */
+.command-nav .el-menu--inline .el-menu--inline .el-menu-item {
+  padding-left: 56px !important;
+  height: 32px;
+  line-height: 32px;
+  font-size: 13px;
+}
+
+/* 菜单项悬浮和选中状态 */
+.command-nav .el-menu-item:hover,
+.command-nav .el-sub-menu__title:hover {
+  background-color: var(--highlight-bg) !important;
+}
+
+.command-nav .el-menu-item.is-active {
+  background-color: var(--el-color-primary-light-9) !important;
+  color: var(--el-color-primary) !important;
+  font-weight: 500;
+}
+
+/* 子菜单图标 */
+.command-nav .el-sub-menu__icon-arrow {
+  right: 15px;
+  font-size: 12px;
+  transition: transform 0.3s;
+}
+
+/* 展开的子菜单 */
+.command-nav .el-menu--inline {
+  background-color: var(--secondary-bg);
+  margin: 4px 0;
+  padding: 4px 0;
+}
+
+/* 暗色模式适配 */
+.command-nav.is-dark {
+  --el-menu-bg-color: var(--primary-bg);
+  --el-menu-text-color: var(--text-secondary);
+  --el-menu-hover-bg-color: var(--highlight-bg);
+  --el-menu-active-color: var(--el-color-primary);
+}
+
+.dark-mode .command-nav .el-menu-item.is-active {
+  background-color: var(--highlight-bg) !important;
+}
+
+/* 导航分组 */
+.command-nav .el-sub-menu {
+  margin: 4px 0;
+}
+
+/* 导航分组标题 */
+.command-nav .el-sub-menu__title {
+  font-weight: 500;
+}
+
+/* 添加滚动条样式 */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 导航栏头部样式优化 */
+.nav-header {
+  height: 60px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
+}
+
+.nav-header span {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 导航菜单容器 */
+.command-nav-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 导航栏头部固定 */
+.nav-header {
+  flex-shrink: 0;
+  height: 60px;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
+}
+
+/* 文件操作区域固定 */
+.file-operations {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-bg);
+}
+
+/* 底部控制栏固定 */
+.nav-control {
+  flex-shrink: 0;
+  height: 40px;
+  background-color: var(--highlight-bg);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* 滚动条样式 */
+.command-nav-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.command-nav-container::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+
+.command-nav-container::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 全局参数栏的滚动条样式 */
+.global-params-wrapper::-webkit-scrollbar {
+  width: 4px; /* 更细的滚动条 */
+}
+
+.global-params-wrapper::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 2px;
+  transition: background-color 0.3s;
+}
+
+.global-params-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary); /* 悬浮时颜色加深 */
+}
+
+.global-params-wrapper::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* 暗色模式下的滚动条样式 */
+.dark-mode .global-params-wrapper::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+}
+
+.dark-mode .global-params-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-secondary);
+}
+
+/* 确保滚动条不占用内容空间 */
+.global-params-wrapper {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--border-color) transparent; /* Firefox */
 }
 </style> 
