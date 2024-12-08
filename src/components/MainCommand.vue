@@ -482,7 +482,7 @@
                   v-if="!subCmd.subCommands"
                   :global-parameters="globalParameters"
                   :command-path="`${command.name} ${subCmd.name}`"
-                  :inherited-parameters="command.parameters || []"
+                  :inherited-parameters="(command.parameters || []).map(param => ({ ...param, source: 'parent' }))"
                   :command-parameters="subCmd.parameters || []"
                   :is-dark="isDark"
                   @clear-current="clearCurrentCommand"
@@ -693,8 +693,8 @@
                           :global-parameters="globalParameters"
                           :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
                           :inherited-parameters="[
-                            ...(command.parameters || []),  // 一级命令参数
-                            ...(subCmd.parameters || [])    // 二级命令参数
+                            ...(command.parameters || []).map(param => ({ ...param, source: 'parent' })),  // 一级命令参数
+                            ...(subCmd.parameters || []).map(param => ({ ...param, source: 'subparent' }))  // 二级命令参数
                           ]"
                           :command-parameters="subSubCmd.parameters || []"
                           :is-dark="isDark"
@@ -773,7 +773,7 @@ const toggleCommand = (commandPath: string) => {
 const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter[] => {
   const inheritedParams: Parameter[] = []
   
-  // 从一级命令继承参数
+  // 从一级命令继��参数
   if (command.parameters) {
     inheritedParams.push(...command.parameters)
   }
