@@ -67,7 +67,12 @@
             type="primary"
             link
             :icon="Plus"
-            @click="$emit('addToSteps', previewCommand, props.commandPath)"
+            @click="async () => { 
+              const shouldContinue = await validateRequiredParams()
+              if (shouldContinue) {
+                $emit('addToSteps', previewCommand, props.commandPath)
+              }
+            }"
           />
         </el-tooltip>
       </div>
@@ -185,8 +190,45 @@ const confirmClearAll = async () => {
   }
 }
 
-// 复制命令
+// 修改验证函数
+const validateRequiredParams = async () => {
+  // 检查命令自身的必填参数
+  const missingParams = props.commandParameters
+    .filter(param => param.required && !param.value)
+    .map(param => param.param)
+
+  // 检查继承的必填参数
+  const missingInheritedParams = props.inheritedParameters
+    .filter(param => param.required && !param.value)
+    .map(param => param.param)
+
+  const allMissingParams = [...missingParams, ...missingInheritedParams]
+  
+  if (allMissingParams.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `以下必填参数未填写：\n${allMissingParams.join('\n')}\n\n是否仍然继续？`,
+        '缺少必填参数',
+        {
+          confirmButtonText: '仍然继续',
+          cancelButtonText: '取消',
+          type: 'warning',
+          customClass: props.isDark ? 'dark-message-box' : ''
+        }
+      )
+      return true // 用户选择继续
+    } catch {
+      return false // 用户选择取消
+    }
+  }
+  return true
+}
+
+// 修改复制命令函数
 const copyCommand = async () => {
+  const shouldContinue = await validateRequiredParams()
+  if (!shouldContinue) return
+  
   try {
     await navigator.clipboard.writeText(previewCommand.value)
     ElMessage({
