@@ -28,16 +28,26 @@ jobs:
         run: |
           mkdir -p config
           cat > config/tools.yaml << EOL
-          - name: "示例工具"
-            description: "这是一个示例工具配置"
-            commands:
-              - name: "示例命令"
-                template: "echo 'Hello World'"
-                params:
-                  - name: "message"
-                    description: "要显示的消息"
-                    type: "string"
-                    default: "Hello World"
+          - name: "node"
+            description: "Node.js 相关命令"
+            template: "node {command}"
+            tags: ["nodejs", "runtime"]
+            globalParams:
+              - param: "output"
+                type: "string"
+                description: "输出格式"
+                default: "json"
+                required: false
+            subCommands:
+              - name: "list"
+                description: "列出所有 Node.js 版本"
+                template: "list"
+                parameters:
+                  - param: "remote"
+                    type: "boolean"
+                    description: "是否显示远程版本"
+                    default: "true"
+                    required: false
           EOL
 
       - name: Type Check

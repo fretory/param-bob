@@ -1,9 +1,8 @@
 import yaml from 'js-yaml'
-import { ToolConfig } from '@/types/config'
+import { Command, ToolConfig } from '@/types/config'
 
-export async function loadConfig(): Promise<ToolConfig[]> {
+export async function loadConfig(): Promise<ToolConfig> {
   try {
-    // 根据环境构建正确的配置文件路径
     const basePath = import.meta.env.BASE_URL || '/'
     const configPath = `${basePath}config/tools.yaml`
     
@@ -14,16 +13,16 @@ export async function loadConfig(): Promise<ToolConfig[]> {
     }
     
     const yamlText = await response.text()
-    const config = yaml.load(yamlText) as ToolConfig[]
+    const commands = yaml.load(yamlText) as Command[]
     
-    if (!Array.isArray(config)) {
-      console.error('Config is not an array:', config)
-      return []
+    if (!Array.isArray(commands)) {
+      console.error('Config is not an array:', commands)
+      return { commands: [] }
     }
     
-    return config
+    return { commands }
   } catch (error) {
     console.error('Error loading config:', error)
-    return []
+    return { commands: [] }
   }
 } 

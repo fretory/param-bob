@@ -26,7 +26,7 @@
     <el-container>
       <el-aside :width="isNavVisible ? '250px' : '0'" class="sidebar">
         <div class="nav-header">
-          <span>{{ toolConfig?.name || 'Tools' }}</span>
+          <span>{{ 'Command Helper' }}</span>
           <div class="nav-controls">
             <el-tooltip content="只读模式" placement="bottom">
               <el-switch
@@ -282,51 +282,57 @@ watch(globalParamsWidth, (newValue) => {
 const LOCAL_STORAGE_CONFIG_KEY = 'tools_config'
 
 // 修改配置数据的初始化
-const toolConfig = ref<ToolConfig | null>(null)
-const commands = computed(() => toolConfig.value?.commands || [])
+const toolConfig = ref<ToolConfig>({
+  commands: [],
+  globalParameters: []
+})
 
-// 修改加载配置文件的函数
-onMounted(async () => {
+// 添加初始化函数
+const initConfig = async () => {
   try {
     // 先尝试从 localStorage 读取配置
     const savedConfig = localStorage.getItem(LOCAL_STORAGE_CONFIG_KEY)
     if (savedConfig) {
       const config = JSON.parse(savedConfig)
-      toolConfig.value = config
-      
-      // 初始化全局参数
-      if (config.globalParameters && toolSelector.value) {
-        toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
-          name: param.param,
-          value: param.value || param.default || '',
-          enabled: true
-        }))
+      toolConfig.value = {
+        commands: config.commands || [],
+        globalParameters: config.globalParameters || []
       }
     } else {
       // 如果没有本地缓存，则加载默认配置
-      const config = await loadConfig('/config/tools.yaml')
-      toolConfig.value = config
-      
-      if (config.globalParameters && toolSelector.value) {
-        toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
-          name: param.param,
-          value: param.value || param.default || '',
-          enabled: true
-        }))
+      const config = await loadConfig()
+      toolConfig.value = {
+        commands: config.commands || [],
+        globalParameters: config.globalParameters || []
       }
+    }
+    
+    // 初始化全局参数
+    if (toolSelector.value && toolConfig.value.globalParameters) {
+      toolSelector.value.parameters = toolConfig.value.globalParameters.map(param => ({
+        name: param.param,
+        value: param.value || param.default || '',
+        enabled: true
+      }))
     }
   } catch (error) {
     console.error('Failed to load config:', error)
     ElMessage.error('加载配置文件失败')
+    // 确保即使加载失败也有一个有效的初始状态
+    toolConfig.value = {
+      commands: [],
+      globalParameters: []
+    }
   }
+}
+
+// 在 onMounted 中调用初始化函数
+onMounted(() => {
+  initConfig()
 })
 
-// 添加配置变化的监听
-watch(() => toolConfig.value, (newConfig) => {
-  if (newConfig) {
-    localStorage.setItem(LOCAL_STORAGE_CONFIG_KEY, JSON.stringify(newConfig))
-  }
-}, { deep: true })
+// 修改计算属性
+const commands = computed(() => toolConfig.value?.commands || [])
 
 const scrollToCommand = (cmdName: string, event?: MouseEvent) => {
   if (event) {
@@ -402,7 +408,10 @@ const onFileSelected = async (event: Event) => {
         ? JSON.parse(content)
         : yaml.load(content)
       
-      toolConfig.value = config
+      toolConfig.value = {
+        commands: config.commands || [],
+        globalParameters: config.globalParameters || []
+      }
       
       // 重置并初始化全局参数
       if (toolSelector.value) {
@@ -430,18 +439,13 @@ const onFileSelected = async (event: Event) => {
   input.value = ''
 }
 
-// 处理文件导出
+// 修改文件导出处理函数
 const handleFileExport = () => {
-  if (!toolConfig.value) {
-    ElMessage.warning('没有出的配置')
-    return
-  }
-
   try {
     // 创建要导出的配置副本并排序
     const exportConfig = {
-      ...toolConfig.value,
-      commands: [...toolConfig.value.commands].sort((a, b) => a.name.localeCompare(b.name))
+      commands: [...toolConfig.value.commands].sort((a, b) => a.name.localeCompare(b.name)),
+      globalParameters: toolConfig.value.globalParameters
     }
     
     const content = yaml.dump(exportConfig)
@@ -507,26 +511,25 @@ const handleResetConfig = async () => {
     )
 
     // 加载默认配置
-    const config = await loadConfig('/config/tools.yaml')
-    toolConfig.value = config
+    const config = await loadConfig()
+    toolConfig.value = {
+      commands: config.commands || [],
+      globalParameters: config.globalParameters || []
+    }
     
     // 重置并初始化全局参数
-    if (toolSelector.value) {
-      if (config.globalParameters) {
-        toolSelector.value.parameters = config.globalParameters.map((value: Parameter) => ({
-          name: value.param,
-          value: value.value || value.default || '',
-          enabled: true
-        }))
-      } else {
-        toolSelector.value.parameters = []
-      }
+    if (toolSelector.value && config.globalParameters) {
+      toolSelector.value.parameters = config.globalParameters.map(param => ({
+        name: param.param,
+        value: param.value || param.default || '',
+        enabled: true
+      }))
     }
     
     // 清除本地缓存
     localStorage.removeItem(LOCAL_STORAGE_CONFIG_KEY)
     
-    ElMessage.success('��复默认配置')
+    ElMessage.success('恢复默认配置')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Failed to reset config:', error)
@@ -574,13 +577,25 @@ const showCommandEditor = () => {
 }
 
 const handleAddCommand = (command: Command) => {
-  if (!toolConfig.value) return
+  if (!toolConfig.value) {
+    toolConfig.value = {
+      commands: [],
+      globalParameters: []
+    }
+  }
+  
+  if (!toolConfig.value.commands) {
+    toolConfig.value.commands = []
+  }
   
   // 添加新命令
   toolConfig.value.commands.push(command)
   
   // 对命令列表进行排序
   toolConfig.value.commands.sort((a, b) => a.name.localeCompare(b.name))
+  
+  // 关闭命令编辑器
+  isCommandEditorVisible.value = false
   
   ElMessage.success('命令添加成功')
 }
@@ -919,7 +934,7 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* 暗色模式下表格选中行的样�� */
+/* 暗色模式下表格选中行的样式 */
 .dark-mode .el-table tr.current-row > td.el-table__cell {
   background-color: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
@@ -1199,7 +1214,7 @@ body {
 
 /* 调整主内容区域左边距 */
 .main-content {
-  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空�� */
+  padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空间 */
 }
 
 /* 响应式调整 */
@@ -1268,7 +1283,7 @@ body {
   gap: 2px;
 }
 
-/* 调整按钮样式 */
+/* 整按钮样式 */
 .file-op-btn {
   padding: 6px !important;
   height: 28px !important;
@@ -1435,7 +1450,7 @@ body {
   color: var(--text-primary);
 }
 
-/* 导航菜单容 */
+/* 导航菜单容器 */
 .command-nav-container {
   flex: 1;
   overflow-y: auto;

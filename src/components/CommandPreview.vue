@@ -102,20 +102,30 @@ const emit = defineEmits(['clearCurrent', 'goToParent', 'clearAll', 'addToSteps'
 const previewRef = ref<HTMLElement | null>(null)
 
 const previewCommand = computed(() => {
-  const parts = ['tools']
+  const parts = []
+  
+  // 获取命令路径部分
+  const pathParts = props.commandPath.split(' ')
+  const command = pathParts[0] // 主命令
+  const subCommand = pathParts.slice(1).join(' ') // 子命令部分
+  
+  // 构建基本命令
+  let baseCommand = command
+  if (subCommand) {
+    baseCommand = `${command} ${subCommand}`
+  }
   
   // 添加全局参数
   const globalPart = props.globalParameters
     .filter(param => param.name && param.value && param.enabled)
     .map(param => `--${param.name} ${param.value}`)
     .join(' ')
-  if (globalPart) parts.push(globalPart)
-  
-  // 添加命令路径
-  parts.push(props.commandPath.replace(/-/g, ' '))
   
   // 收集所有参数（包括继承的参数和当前命令的参数）
   const allParameters = [
+    // 全局参数
+    ...globalPart ? [globalPart] : [],
+    
     // 继承的参数（来自父命令）
     ...props.inheritedParameters
       .filter(param => param.value && (param.enabled || param.required))
@@ -129,11 +139,8 @@ const previewCommand = computed(() => {
 
   // 添加所有参数（去重）
   const uniqueParameters = [...new Set(allParameters)]
-  if (uniqueParameters.length > 0) {
-    parts.push(uniqueParameters.join(' '))
-  }
   
-  return parts.join(' ')
+  return [baseCommand, ...uniqueParameters].join(' ')
 })
 
 // 修改返回父命令的逻辑
@@ -197,7 +204,7 @@ const confirmClearAll = async () => {
 
 // 修改验证函数
 const validateRequiredParams = async () => {
-  // 检查命令自身的必填参数
+  // 检查命令自身必填参数
   const missingParams = props.commandParameters
     .filter(param => param.required && !param.value)
     .map(param => param.param)

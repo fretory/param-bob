@@ -66,6 +66,7 @@
 <script setup lang="ts">
 import { ref, defineExpose, defineProps } from 'vue'
 import { Close, ArrowRight, Plus, Setting, Delete } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 defineProps<{
   isDark?: boolean
@@ -75,6 +76,8 @@ interface ParamItem {
   name: string;
   value: string;
   enabled: boolean;
+  type?: string;
+  description?: string;
 }
 
 const isCollapsed = ref(false)
@@ -88,12 +91,22 @@ const addParameter = () => {
   parameters.value.push({ 
     name: '', 
     value: '', 
-    enabled: true // 新添加的参数默认启用
+    enabled: true,
+    type: 'string',
+    description: ''
   })
 }
 
 const removeParameter = (index: number) => {
   parameters.value.splice(index, 1)
+}
+
+const validateParameter = (param: ParamItem) => {
+  if (!param.name.match(/^[a-z][a-z0-9-]*$/)) {
+    ElMessage.error('参数名称只能包含小写字母、数字和横杠，且必须以字母开头')
+    return false
+  }
+  return true
 }
 
 defineExpose({

@@ -253,11 +253,14 @@
         </div>
         <!-- 一级命令预览 -->
         <command-preview 
-          v-if="!command.subCommands"
           :global-parameters="globalParameters"
           :command-path="command.name"
+          :command-template="command.template"
           :inherited-parameters="[]"
-          :command-parameters="command.parameters || []"
+          :command-parameters="[
+            ...(command.globalParams || []),
+            ...(command.parameters || [])
+          ]"
           :is-dark="isDark"
           @clear-current="clearCurrentCommand"
           @go-to-parent="() => handleGoToParent(command.name)"
@@ -477,12 +480,14 @@
                   </el-table>
                 </div>
 
-                <!-- 二级命令预览（当没有三级命令时） -->
+                <!-- 二级命令预览 -->
                 <command-preview 
-                  v-if="!subCmd.subCommands"
                   :global-parameters="globalParameters"
                   :command-path="`${command.name} ${subCmd.name}`"
-                  :inherited-parameters="command.parameters || []"
+                  :inherited-parameters="[
+                    ...(command.globalParams || []),
+                    ...(command.parameters || [])
+                  ]"
                   :command-parameters="subCmd.parameters || []"
                   :is-dark="isDark"
                   @clear-current="clearCurrentCommand"
@@ -839,7 +844,7 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
       return false
     }
     
-    if (targetCommand.parameters?.some(p => p.param === param)) {
+    if (targetCommand.parameters?.some((p: Parameter) => p.param === param)) {
       ElMessage.error('参数名称已存在')
       return false
     }
@@ -933,7 +938,7 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
 
 /**
  * 滚动到指定命令位置
- * 支持平滑滚动和位置偏移
+ * 支持平滑��动和位置偏移
  * 
  * @param commandPath 命令路径
  */
@@ -1000,10 +1005,10 @@ const clearAllCommands = () => {
 
   // 清空子命令的参数
   if (props.command.subCommands) {
-    props.command.subCommands.forEach(subCmd => {
+    props.command.subCommands.forEach((subCmd: SubCommand) => {
       clearParams(subCmd.parameters)
       if (subCmd.subCommands) {
-        subCmd.subCommands.forEach(subSubCmd => {
+        subCmd.subCommands.forEach((subSubCmd: SubCommand) => {
           clearParams(subSubCmd.parameters)
         })
       }
@@ -1030,7 +1035,7 @@ const handleParamInput = (param: Parameter) => {
   if (param.value && !param.enabled && !param.required) {
     param.enabled = true
   }
-  // 如果清空了值且不是必需参数，则自动禁
+  // 如果清空了值且不是必需参数，则自动禁用
   if (!param.value && !param.required) {
     param.enabled = false
   }
@@ -1207,6 +1212,18 @@ const handleDeleteParameter = async (targetCommand: Command | SubCommand, index:
   } catch {
     // 用户取消删除
   }
+}
+
+// 添加命令模板处理方法
+const processTemplate = (template: string, params: Parameter[]) => {
+  let result = template
+  params.forEach(param => {
+    if (param.value && (param.enabled || param.required)) {
+      const placeholder = `{${param.param}}`
+      result = result.replace(placeholder, param.value)
+    }
+  })
+  return result
 }
 </script>
 
