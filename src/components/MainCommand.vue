@@ -482,7 +482,7 @@
                   v-if="!subCmd.subCommands"
                   :global-parameters="globalParameters"
                   :command-path="`${command.name} ${subCmd.name}`"
-                  :inherited-parameters="getInheritedParameters(command, subCmd)"
+                  :inherited-parameters="command.parameters || []"
                   :command-parameters="subCmd.parameters || []"
                   :is-dark="isDark"
                   @clear-current="clearCurrentCommand"
@@ -692,8 +692,11 @@
                         <command-preview 
                           :global-parameters="globalParameters"
                           :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
-                          :inherited-parameters="getInheritedParameters(command, subCmd)"
-                          :command-parameters="subSubCmd.parameters"
+                          :inherited-parameters="[
+                            ...(command.parameters || []),  // 一级命令参数
+                            ...(subCmd.parameters || [])    // 二级命令参数
+                          ]"
+                          :command-parameters="subSubCmd.parameters || []"
                           :is-dark="isDark"
                           @clear-current="clearCurrentCommand"
                           @go-to-parent="() => scrollToCommand(`${command.name}-${subCmd.name}`)"
@@ -770,9 +773,17 @@ const toggleCommand = (commandPath: string) => {
 const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter[] => {
   const inheritedParams: Parameter[] = []
   
-  // 从一级命令继承有参数
+  // 从一级命令继承参数
   if (command.parameters) {
     inheritedParams.push(...command.parameters)
+  }
+
+  // 如果是三级命令，还需要从二级命令继承参数
+  if (subCmd.subCommands) {
+    // 添加二级命令的参数
+    if (subCmd.parameters) {
+      inheritedParams.push(...subCmd.parameters)
+    }
   }
   
   return inheritedParams

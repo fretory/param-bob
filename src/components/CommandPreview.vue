@@ -104,7 +104,7 @@ const previewRef = ref<HTMLElement | null>(null)
 const previewCommand = computed(() => {
   const parts = ['tools']
   
-  // 修改全局参数的过滤条件
+  // 添加全局参数
   const globalPart = props.globalParameters
     .filter(param => param.name && param.value && param.enabled)
     .map(param => `--${param.name} ${param.value}`)
@@ -112,21 +112,26 @@ const previewCommand = computed(() => {
   if (globalPart) parts.push(globalPart)
   
   // 添加命令路径
-  parts.push(props.commandPath)
+  parts.push(props.commandPath.replace(/-/g, ' '))
   
-  // 添加继承的参数
-  const inheritedPart = props.inheritedParameters
-    .filter(param => param.value && (param.enabled || param.required))
-    .map(param => `--${param.param} ${param.value}`)
-    .join(' ')
-  if (inheritedPart) parts.push(inheritedPart)
-  
-  // 添加命令自身的参数
-  const commandPart = props.commandParameters
-    .filter(param => param.value && (param.enabled || param.required))
-    .map(param => `--${param.param} ${param.value}`)
-    .join(' ')
-  if (commandPart) parts.push(commandPart)
+  // 收集所有参数（包括继承的参数和当前命令的参数）
+  const allParameters = [
+    // 继承的参数（来自父命令）
+    ...props.inheritedParameters
+      .filter(param => param.value && (param.enabled || param.required))
+      .map(param => `--${param.param} ${param.value}`),
+    
+    // 当前命令的参数
+    ...props.commandParameters
+      .filter(param => param.value && (param.enabled || param.required))
+      .map(param => `--${param.param} ${param.value}`)
+  ]
+
+  // 添加所有参数（去重）
+  const uniqueParameters = [...new Set(allParameters)]
+  if (uniqueParameters.length > 0) {
+    parts.push(uniqueParameters.join(' '))
+  }
   
   return parts.join(' ')
 })
