@@ -161,21 +161,6 @@
             class="command-section"
           >
             <div :id="cmd.name" class="command-anchor"></div>
-            <div class="command-header">
-              <h2>{{ cmd.name }}</h2>
-              <div class="command-tags">
-                <el-tag 
-                  v-for="tag in cmd.tags" 
-                  :key="tag" 
-                  size="small" 
-                  class="tag"
-                  :type="isDarkMode ? 'info' : ''"
-                  :effect="isDarkMode ? 'dark' : 'light'"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
-            </div>
             <main-command 
               :command="cmd" 
               :is-dark="isDarkMode"
@@ -735,23 +720,10 @@ body {
   scroll-margin-top: 20px;
 }
 
-.command-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
 .command-section h3 {
   margin: 0;
   color: var(--text-primary);
   font-size: 24px;
-}
-
-.command-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .command-desc {
@@ -965,14 +937,6 @@ body {
   position: relative;
   top: -20px;
   visibility: hidden;
-}
-
-/* 调整标题样式 */
-.command-header h2 {
-  margin: 0;
-  font-size: 28px;
-  color: var(--text-primary);
-  font-weight: 600;
 }
 
 /* 优化子菜单标的点击区域 */

@@ -1,95 +1,41 @@
 <template>
   <div class="main-command">
-    <div class="command-description">
-      {{ command.description }}
-    </div>
-    
-    <!-- 一级命令的参数 -->
-    <div v-if="command.parameters" class="command-params">
-      <h3 class="params-title">命令参数</h3>
-      <div class="params-table">
-        <el-table :data="command.parameters" border>
-          <el-table-column width="50">
-            <template #default="scope">
-              <el-checkbox
-                v-model="scope.row.enabled"
-                :disabled="scope.row.required"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column prop="param" label="param" />
-          <el-table-column prop="type" label="type" />
-          <el-table-column prop="description" label="description" />
-          <el-table-column prop="required" label="required">
-            <template #default="scope">
-              {{ scope.row.required ? 'true' : 'false' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="value" label="your value">
-            <template #default="scope">
-              <el-input 
-                v-model="scope.row.value"
-                @input="handleParamInput(scope.row)"
-              />
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <!-- 添加一级命令的预览 -->
-      <command-preview 
-        v-if="!command.subCommands"
-        :global-parameters="globalParameters"
-        :command-path="command.name"
-        :inherited-parameters="[]"
-        :command-parameters="command.parameters"
-        :is-dark="isDark"
-        @clear-current="clearCurrentCommand"
-        @go-to-parent="handleGoToParent"
-        @clear-all="clearAllCommands"
-        @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, command.name)"
-      />
-    </div>
-    
-    <!-- 子命令部分 -->
-    <template v-if="command.subCommands">
-      <div 
-        v-for="subCmd in command.subCommands" 
-        :key="subCmd.name" 
-        class="sub-command"
-        :id="`${command.name}-${subCmd.name}`"
-      >
-        <div class="command-title-wrapper">
-          <div class="title-content">
-            <h3 class="sub-command-title">
-              <span class="command-text">{{ command.name }} {{ subCmd.name }}</span>
-            </h3>
-            <p class="sub-command-desc">{{ subCmd.description }}</p>
-          </div>
-          <div class="title-actions">
-            <el-tooltip content="返回上级" placement="top">
-              <el-button
-                type="primary"
-                link
-                :icon="Back"
-                @click="goToParent(`${command.name}`)"
-              />
-            </el-tooltip>
-            <el-tooltip content="复制链接" placement="top">
-              <el-button
-                type="primary"
-                link
-                :icon="Link"
-                @click="copyLink(`${command.name}-${subCmd.name}`)"
-              />
-            </el-tooltip>
+    <!-- 一级命令的折叠控制 -->
+    <div class="command-title-wrapper" @click="toggleCommand(command.name)">
+      <div class="title-content">
+        <div class="command-header">
+          <h2 class="command-title">
+            <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(command.name) }">
+              <ArrowRight />
+            </el-icon>
+            {{ command.name }}
+          </h2>
+          <div class="command-tags">
+            <el-tag 
+              v-for="tag in command.tags" 
+              :key="tag" 
+              size="small" 
+              class="tag"
+              :type="isDark ? 'info' : ''"
+              :effect="isDark ? 'dark' : 'light'"
+            >
+              {{ tag }}
+            </el-tag>
           </div>
         </div>
-        
-        <!-- 二级命令的参数 -->
-        <div v-if="subCmd.parameters" class="params-table">
-          <h4 class="params-subtitle">命令参数</h4>
-          <el-table :data="subCmd.parameters" border>
+      </div>
+    </div>
+
+    <div v-show="!isCollapsed(command.name)">
+      <div class="command-description">
+        {{ command.description }}
+      </div>
+      
+      <!-- 一级命令的参数部分 -->
+      <div v-if="command.parameters" class="command-params">
+        <h3 class="params-title">命令参数</h3>
+        <div class="params-table">
+          <el-table :data="command.parameters" border>
             <el-table-column width="50">
               <template #default="scope">
                 <el-checkbox
@@ -117,59 +63,48 @@
           </el-table>
         </div>
 
-        <!-- 如果没有三级命令，显示二级命令的预览 -->
-        <template v-if="!subCmd.subCommands">
-          <command-preview 
-            :global-parameters="globalParameters"
-            :command-path="`${command.name} ${subCmd.name}`"
-            :inherited-parameters="getInheritedParameters(command, subCmd)"
-            :command-parameters="subCmd.parameters || []"
-            :is-dark="isDark"
-            @clear-current="clearCurrentCommand"
-            @go-to-parent="handleGoToParent"
-            @clear-all="clearAllCommands"
-            @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}`)"
-          />
-        </template>
-
-        <!-- 有三级命令的情况 -->
-        <template v-else>
-          <!-- 三级命令部分 -->
-          <div 
-            v-for="subSubCmd in subCmd.subCommands" 
-            :key="subSubCmd.name"
-            class="sub-sub-command"
-            :id="`${command.name}-${subCmd.name}-${subSubCmd.name}`"
-          >
-            <div class="command-title-wrapper">
-              <div class="title-content">
-                <h4 class="sub-sub-command-title">
-                  <span class="command-text">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</span>
-                </h4>
-                <p class="sub-sub-command-desc">{{ subSubCmd.description }}</p>
-              </div>
-              <div class="title-actions">
-                <el-tooltip content="返回上级" placement="top">
-                  <el-button
-                    type="primary"
-                    link
-                    :icon="Back"
-                    @click="goToParent(`${command.name}-${subCmd.name}`)"
-                  />
-                </el-tooltip>
-                <el-tooltip content="复制链接" placement="top">
-                  <el-button
-                    type="primary"
-                    link
-                    :icon="Link"
-                    @click="copyLink(`${command.name}-${subCmd.name}-${subSubCmd.name}`)"
-                  />
-                </el-tooltip>
-              </div>
+        <!-- 添加一级命令的预览 -->
+        <command-preview 
+          v-if="!command.subCommands"
+          :global-parameters="globalParameters"
+          :command-path="command.name"
+          :inherited-parameters="[]"
+          :command-parameters="command.parameters"
+          :is-dark="isDark"
+          @clear-current="clearCurrentCommand"
+          @go-to-parent="handleGoToParent"
+          @clear-all="clearAllCommands"
+          @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, command.name)"
+        />
+      </div>
+      
+      <!-- 子命令部分 -->
+      <template v-if="command.subCommands">
+        <div 
+          v-for="subCmd in command.subCommands" 
+          :key="subCmd.name" 
+          class="sub-command"
+          :id="`${command.name}-${subCmd.name}`"
+        >
+          <!-- 二级命令的折叠控制 -->
+          <div class="command-title-wrapper" @click="toggleCommand(`${command.name}-${subCmd.name}`)">
+            <div class="title-content">
+              <h3 class="sub-command-title">
+                <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}`) }">
+                  <ArrowRight />
+                </el-icon>
+                <span class="command-text">{{ command.name }} {{ subCmd.name }}</span>
+              </h3>
             </div>
+          </div>
 
-            <div class="params-table">
-              <el-table :data="subSubCmd.parameters" border>
+          <div v-show="!isCollapsed(`${command.name}-${subCmd.name}`)">
+            <p class="sub-command-desc">{{ subCmd.description }}</p>
+            
+            <!-- 二级命令的参数部分 -->
+            <div v-if="subCmd.parameters" class="params-table">
+              <h4 class="params-subtitle">命令参数</h4>
+              <el-table :data="subCmd.parameters" border>
                 <el-table-column width="50">
                   <template #default="scope">
                     <el-checkbox
@@ -197,29 +132,99 @@
               </el-table>
             </div>
 
+            <!-- 添加二级命令的预览（当没有子命令时） -->
             <command-preview 
+              v-if="!subCmd.subCommands"
               :global-parameters="globalParameters"
-              :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
+              :command-path="`${command.name} ${subCmd.name}`"
               :inherited-parameters="getInheritedParameters(command, subCmd)"
-              :command-parameters="subSubCmd.parameters"
+              :command-parameters="subCmd.parameters || []"
               :is-dark="isDark"
               @clear-current="clearCurrentCommand"
               @go-to-parent="handleGoToParent"
               @clear-all="clearAllCommands"
-              @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+              @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}`)"
             />
+
+            <!-- 三级命令部分 -->
+            <template v-if="subCmd.subCommands">
+              <div 
+                v-for="subSubCmd in subCmd.subCommands" 
+                :key="subSubCmd.name"
+                class="sub-sub-command"
+                :id="`${command.name}-${subCmd.name}-${subSubCmd.name}`"
+              >
+                <!-- 三级命令的折叠控制 -->
+                <div class="command-title-wrapper" @click="toggleCommand(`${command.name}-${subCmd.name}-${subSubCmd.name}`)">
+                  <div class="title-content">
+                    <h4 class="sub-sub-command-title">
+                      <el-icon class="collapse-icon" :class="{ 'is-collapsed': isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`) }">
+                        <ArrowRight />
+                      </el-icon>
+                      <span class="command-text">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</span>
+                    </h4>
+                  </div>
+                </div>
+
+                <div v-show="!isCollapsed(`${command.name}-${subCmd.name}-${subSubCmd.name}`)">
+                  <p class="sub-sub-command-desc">{{ subSubCmd.description }}</p>
+                  
+                  <div class="params-table">
+                    <el-table :data="subSubCmd.parameters" border>
+                      <el-table-column width="50">
+                        <template #default="scope">
+                          <el-checkbox
+                            v-model="scope.row.enabled"
+                            :disabled="scope.row.required"
+                          />
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="param" label="param" />
+                      <el-table-column prop="type" label="type" />
+                      <el-table-column prop="description" label="description" />
+                      <el-table-column prop="required" label="required">
+                        <template #default="scope">
+                          {{ scope.row.required ? 'true' : 'false' }}
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="value" label="your value">
+                        <template #default="scope">
+                          <el-input 
+                            v-model="scope.row.value"
+                            @input="handleParamInput(scope.row)"
+                          />
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </div>
+
+                  <command-preview 
+                    :global-parameters="globalParameters"
+                    :command-path="`${command.name} ${subCmd.name} ${subSubCmd.name}`"
+                    :inherited-parameters="getInheritedParameters(command, subCmd)"
+                    :command-parameters="subSubCmd.parameters"
+                    :is-dark="isDark"
+                    @clear-current="clearCurrentCommand"
+                    @go-to-parent="handleGoToParent"
+                    @clear-all="clearAllCommands"
+                    @add-to-steps="(commandStr) => $emit('addToCommandSteps', commandStr, `${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+                  />
+                </div>
+              </div>
+            </template>
           </div>
-        </template>
-      </div>
-    </template>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
 import { defineProps, defineEmits } from 'vue'
 import type { Command, SubCommand, Parameter } from '../types/config'
 import CommandPreview from './CommandPreview.vue'
-import { Back, Link } from '@element-plus/icons-vue'
+import { Back, Link, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
@@ -229,6 +234,28 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['addToCommandSteps'])
+
+// 折叠状态管理
+const collapsedStates = ref<Set<string>>(new Set())
+
+// 切换折叠状态
+const toggleCommand = (commandPath: string) => {
+  if (collapsedStates.value.has(commandPath)) {
+    collapsedStates.value.delete(commandPath)
+  } else {
+    collapsedStates.value.add(commandPath)
+  }
+}
+
+// 检查是否折叠
+const isCollapsed = (commandPath: string) => {
+  return collapsedStates.value.has(commandPath)
+}
+
+// 监听命令变化，重置折叠状态
+watch(() => props.command, () => {
+  collapsedStates.value.clear()
+}, { deep: true })
 
 // 获取继承的参数
 const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter[] => {
@@ -343,10 +370,11 @@ const handleParamInput = (param: Parameter) => {
 <style scoped>
 .main-command {
   margin-top: 20px;
+  margin-bottom: 60px;
 }
 
 .command-description {
-  margin: 0 0 30px;
+  margin: 0 0 40px;
   color: var(--text-secondary);
   font-size: 16px;
   line-height: 1.6;
@@ -357,13 +385,13 @@ const handleParamInput = (param: Parameter) => {
 }
 
 .command-title,
-.sub-command-title {
+.sub-command-title,
+.sub-sub-command-title {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 0 0 20px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
+  margin: 0;
+  padding: 0;
+  line-height: 32px;
 }
 
 .command-text {
@@ -387,7 +415,7 @@ const handleParamInput = (param: Parameter) => {
 }
 
 .sub-command {
-  margin-bottom: 40px;
+  margin: 30px 0;
   padding: 24px;
   background-color: var(--secondary-bg);
   border-radius: 8px;
@@ -406,7 +434,7 @@ const handleParamInput = (param: Parameter) => {
 }
 
 .params-table {
-  margin-bottom: 24px;
+  margin: 20px 0 30px;
 }
 
 .single-command {
@@ -425,7 +453,7 @@ const handleParamInput = (param: Parameter) => {
 }
 
 .sub-sub-command-title {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -469,6 +497,8 @@ const handleParamInput = (param: Parameter) => {
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  user-select: none;
 }
 
 .title-content {
@@ -609,5 +639,115 @@ const handleParamInput = (param: Parameter) => {
 
 .params-subtitle {
   font-size: 14px;
+}
+
+.collapse-icon {
+  font-size: 16px;
+  margin-right: 8px;
+  transition: transform 0.3s ease;
+  color: var(--text-secondary);
+}
+
+.collapse-icon.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.command-title-wrapper {
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 0;
+}
+
+.command-title-wrapper:hover {
+  background-color: var(--highlight-bg);
+}
+
+.command-title,
+.sub-command-title,
+.sub-sub-command-title {
+  display: flex;
+  align-items: center;
+}
+
+/* 移除其他重复的边框线 */
+.command-title,
+.sub-command-title {
+  border-bottom: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sub-sub-command-title {
+  border-bottom: none;
+}
+
+.command-title {
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+.sub-command-title {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.sub-sub-command-title {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.sub-command {
+  margin-left: 0;
+}
+
+.sub-sub-command {
+  margin-left: 20px;
+}
+
+.sub-command-desc {
+  margin-bottom: 24px;
+}
+
+.sub-sub-command-desc {
+  margin-bottom: 20px;
+}
+
+.el-divider {
+  margin: 60px 0;
+}
+
+.command-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+}
+
+.command-title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-size: 28px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.command-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.command-title-wrapper {
+  cursor: pointer;
+  user-select: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.command-title-wrapper:hover {
+  background-color: var(--highlight-bg);
 }
 </style> 
