@@ -1,10 +1,10 @@
-name: "示例工具"
-description: "这是一个示例工具配置"
-commands:
-  - name: "示例命令"
-    template: "echo 'Hello World'"
-    params:
-      - name: "message"
-        description: "要显示的消息"
-        type: "string"
-        default: "Hello World"
+- name: "示例工具"
+  description: "这是一个示例工具配置"
+  commands:
+    - name: "示例命令"
+      template: "echo 'Hello World'"
+      params:
+        - name: "message"
+          description: "要显示的消息"
+          type: "string"
+          default: "Hello World"
