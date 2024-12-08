@@ -85,7 +85,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { Parameter } from '../types/config'
 
 const props = defineProps<{
-  globalParameters: { name: string; value: string }[];
+  globalParameters: { name: string; value: string; enabled?: boolean }[];
   commandPath: string;
   inheritedParameters: Parameter[];
   commandParameters: Parameter[];
@@ -142,7 +142,7 @@ const confirmClearCurrent = async () => {
   try {
     await ElMessageBox.confirm(
       '确定要清空当前命令的所有输入吗？',
-      '确���清空',
+      '确认清空',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -196,7 +196,7 @@ const copyCommand = async () => {
     })
   } catch (err) {
     ElMessage({
-      message: '复��失败，请手动复制',
+      message: '复制失败，请手动复制',
       type: 'error',
       customClass: props.isDark ? 'dark-message' : ''
     })

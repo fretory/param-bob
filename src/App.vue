@@ -209,6 +209,13 @@ import type { ToolConfig } from './types/config'
 import yaml from 'js-yaml'
 import CommandSteps from './components/CommandSteps.vue'
 
+// 添加 Parameter 接口定义
+interface Parameter {
+  param: string
+  value?: string
+  default?: string
+}
+
 const toolSelector = ref<InstanceType<typeof ToolSelector> | null>(null)
 const activeCommand = ref('')
 const isDarkMode = ref(window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -236,7 +243,7 @@ watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
 
-// 配���数据
+// 配置数据
 const toolConfig = ref<ToolConfig | null>(null)
 const commands = computed(() => toolConfig.value?.commands || [])
 
@@ -251,7 +258,8 @@ onMounted(async () => {
     if (config.globalParameters && toolSelector.value) {
       toolSelector.value.parameters = config.globalParameters.map((param: { param: string; value?: string; default?: string }) => ({
         name: param.param,
-        value: param.value || param.default || ''
+        value: param.value || param.default || '',
+        enabled: true
       }))
     }
   } catch (error) {
@@ -341,7 +349,8 @@ const onFileSelected = async (event: Event) => {
         if (config.globalParameters) {
           toolSelector.value.parameters = config.globalParameters.map((param: { param: any; value: any; default: any }) => ({
             name: param.param,
-            value: param.value || param.default || ''
+            value: param.value || param.default || '',
+            enabled: true
           }))
         } else {
           // 如果新配置没有全局参数则清空
@@ -438,9 +447,10 @@ const handleResetConfig = async () => {
     // 重置并初始化全局参数
     if (toolSelector.value) {
       if (config.globalParameters) {
-        toolSelector.value.parameters = config.globalParameters.map((param: { param: any; value: any; default: any }) => ({
-          name: param.param,
-          value: param.value || param.default || ''
+        toolSelector.value.parameters = config.globalParameters.map((value: Parameter) => ({
+          name: value.param,
+          value: value.value || value.default || '',
+          enabled: true
         }))
       } else {
         toolSelector.value.parameters = []

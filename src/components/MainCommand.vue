@@ -29,7 +29,7 @@
             <template #default="scope">
               <el-input 
                 v-model="scope.row.value"
-                :disabled="!scope.row.enabled && !scope.row.required"
+                @input="handleParamInput(scope.row)"
               />
             </template>
           </el-table-column>
@@ -110,7 +110,7 @@
               <template #default="scope">
                 <el-input 
                   v-model="scope.row.value"
-                  :disabled="!scope.row.enabled && !scope.row.required"
+                  @input="handleParamInput(scope.row)"
                 />
               </template>
             </el-table-column>
@@ -190,7 +190,7 @@
                   <template #default="scope">
                     <el-input 
                       v-model="scope.row.value"
-                      :disabled="!scope.row.enabled && !scope.row.required"
+                      @input="handleParamInput(scope.row)"
                     />
                   </template>
                 </el-table-column>
@@ -325,6 +325,18 @@ const copyLink = (id: string) => {
 // 添加处理函数
 const handleAddToSteps = (command: string) => {
   emit('addToCommandSteps', command)
+}
+
+// 添加参数输入处理函数
+const handleParamInput = (param: Parameter) => {
+  // 如果输入了值且参数未启用且不是必需参数，则自动启用
+  if (param.value && !param.enabled && !param.required) {
+    param.enabled = true
+  }
+  // 如果清空了值且不是必需参数，则自动禁用
+  if (!param.value && !param.required) {
+    param.enabled = false
+  }
 }
 </script>
 
@@ -497,7 +509,7 @@ const handleAddToSteps = (command: string) => {
   background-color: var(--highlight-bg);
 }
 
-/* 暗色模��适配 */
+/* 暗色模式适配 */
 .dark-mode .title-actions .el-button {
   color: var(--text-secondary);
 }
