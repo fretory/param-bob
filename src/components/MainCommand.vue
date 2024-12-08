@@ -1,3 +1,29 @@
+/**
+ * MainCommand 组件
+ * 
+ * 该组件负责渲染命令的详细信息，包括：
+ * 1. 命令的基本信息（标题、描述、标签等）
+ * 2. 命令的参数列表
+ * 3. 子命令的管理
+ * 4. 命令的预览功能
+ * 
+ * 组件支持三级命令结构：
+ * - 一级命令（主命令）
+ * - 二级命令（子命令）
+ * - 三级命令（孙命令）
+ * 
+ * @props {Command} command - 当前命令对象
+ * @props {Array} globalParameters - 全局参数列表
+ * @props {boolean} isDark - 是否为暗色模式
+ * @props {Array} existingCommands - 现有的所有命令列表
+ * @props {boolean} isReadOnly - 是否为只读模式
+ * 
+ * @emits addToCommandSteps - 添加到命令步骤
+ * @emits addSubCommand - 添加子命令
+ * @emits deleteCommand - 删除命令
+ * @emits updateCommand - 更新命令
+ */
+
 <template>
   <div class="main-command">
     <!-- 一级命令标题区 -->
@@ -32,7 +58,7 @@
             type="primary"
             link
             :icon="Edit"
-            @click.stop="startEdit(command.name, command.name, 'title')"
+            @click.stop="startEdit(command.name, command.description || '', 'description')"
           />
         </div>
         <div class="command-tags">
@@ -227,7 +253,7 @@
           :global-parameters="globalParameters"
           :command-path="command.name"
           :inherited-parameters="[]"
-          :command-parameters="command.parameters"
+          :command-parameters="command.parameters || []"
           :is-dark="isDark"
           @clear-current="clearCurrentCommand"
           @go-to-parent="() => handleGoToParent(command.name)"
@@ -704,41 +730,31 @@ const props = defineProps<{
 
 const emit = defineEmits(['addToCommandSteps', 'addSubCommand', 'deleteCommand', 'updateCommand'])
 
-// 折叠状态管理
-const collapsedStates = ref<Set<string>>(new Set())
-
-// 切换折叠状态
+/**
+ * 处理命令折叠状态
+ * @param commandPath 命令路径（格式：command/subCommand/subSubCommand）
+ */
 const toggleCommand = (commandPath: string) => {
- 
-  
   if (collapsedStates.value.has(commandPath)) {
-   
     collapsedStates.value.delete(commandPath)
   } else {
-    
     collapsedStates.value.add(commandPath)
   }
   
- 
-  
   // 添加延时后滚动到目标位置
   setTimeout(() => {
-    
     scrollToCommand(commandPath)
   }, 50)
 }
 
-// 检查是否折叠
-const isCollapsed = (commandPath: string) => {
-  return collapsedStates.value.has(commandPath)
-}
-
-// 监听命令变化，重置折叠状态
-watch(() => props.command, () => {
-  collapsedStates.value.clear()
-}, { deep: true })
-
-// 获取继承的参数
+/**
+ * 获取继承的参数列表
+ * 子命令会继承父命令的所有参数
+ * 
+ * @param command 父命令
+ * @param subCmd 子命令
+ * @returns 继承的参数列表
+ */
 const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter[] => {
   const inheritedParams: Parameter[] = []
   
@@ -750,66 +766,19 @@ const getInheritedParameters = (command: Command, subCmd: SubCommand): Parameter
   return inheritedParams
 }
 
-// 清空当前命令的输入
-const clearCurrentCommand = () => {
-  // 清空当前命令的所有参数值
-  if (props.command.parameters) {
-    props.command.parameters.forEach(param => param.value = '')
-  }
-}
-
-// 处理返回父命令
-const handleGoToParent = (parentPath: string) => {
- 
-  scrollToCommand(parentPath)
-}
-
-// 清空所有命令的输入
-const clearAllCommands = () => {
-  // 递归清空所有命令的数值
-  const clearParams = (params?: Parameter[]) => {
-    if (params) {
-      params.forEach(param => param.value = '')
-    }
-  }
-
-  // 清空当前命令的参数
-  clearParams(props.command.parameters)
-
-  // 清空子命令的参数
-  if (props.command.subCommands) {
-    props.command.subCommands.forEach(subCmd => {
-      clearParams(subCmd.parameters)
-      if (subCmd.subCommands) {
-        subCmd.subCommands.forEach(subSubCmd => {
-          clearParams(subSubCmd.parameters)
-        })
-      }
-    })
-  }
-}
-
-// 返回上级命令
-const goToParent = (parentId: string) => {
-  const element = document.getElementById(parentId)
-  if (element) {
-    const offset = 20
-    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
-    window.scrollTo({
-      top: elementPosition - offset,
-      behavior: 'smooth'
-    })
-  }
-}
-
-// 复制当前命令的链接
+/**
+ * 复制命令链接
+ * 生成当前命令位置的锚点链接并复制到剪贴板
+ * 
+ * @param id 命令ID
+ */
 const copyLink = (id: string) => {
   const url = new URL(window.location.href)
   url.hash = id
   navigator.clipboard.writeText(url.toString())
     .then(() => {
       ElMessage({
-        message: '链接已复制到剪贴板',
+        message: '链接已复制到剪���板',
         type: 'success',
         customClass: props.isDark ? 'dark-message' : ''
       })
@@ -823,172 +792,12 @@ const copyLink = (id: string) => {
     })
 }
 
-// 添加参数输入处的函数
-const handleParamInput = (param: Parameter) => {
-  // 如果输入了值且参数未启用且不是必需参数则自动启用
-  if (param.value && !param.enabled && !param.required) {
-    param.enabled = true
-  }
-  // 如果清空了值且不是必需参数，则自动禁用
-  if (!param.value && !param.required) {
-    param.enabled = false
-  }
-}
-
-// 添加的状态
-const isSubCommandEditorVisible = ref(false)
-const selectedParentCommand = ref('')
-
-// 显示添加子命令对话框
-const showAddSubCommand = (parentCommand: string) => {
-  selectedParentCommand.value = parentCommand
-  isSubCommandEditorVisible.value = true
-}
-
-// 处理添加子命令
-const handleAddSubCommand = (newCommand: Command) => {
-  emit('addSubCommand', {
-    parentCommand: selectedParentCommand.value,
-    command: newCommand
-  })
-}
-
-// 从父组获取所有命令列表
-const existingCommands = computed(() => props.existingCommands || [])
-
-// 添加删除确认方法
-const confirmDelete = async (commandPath: string) => {
-  try {
-    const parts = commandPath.split('-')
-    const message = parts.length > 1 
-      ? '此操作将删除该命令及其所有子命令，是否继续？'
-      : '此操作将删除该命令及其所有子命令，是否继续？'
-
-    await ElMessageBox.confirm(
-      message,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-        customClass: props.isDark ? 'dark-message-box' : ''
-      }
-    )
-    
-    emit('deleteCommand', commandPath)
-  } catch {
-    // 用户取消删除
-  }
-}
-
-// 添加编辑相关的状态
-const editingTitle = ref('')
-const editingValue = ref('')
-const editingType = ref<'title' | 'description'>('title')
-const titleInputRef = ref<InstanceType<typeof ElInput> | null>(null)
-const descInputRef = ref<InstanceType<typeof ElInput> | null>(null)
-
-// 开始编辑
-const startEdit = (id: string, value: string, type: 'title' | 'description') => {
-  editingTitle.value = type === 'description' ? `${id}-desc` : id
-  editingValue.value = value
-  editingType.value = type
-
-  // 等待 DOM 更新后聚焦输入框
-  nextTick(() => {
-    if (type === 'title') {
-      titleInputRef.value?.focus()
-    } else {
-      descInputRef.value?.focus()
-    }
-  })
-}
-
-// 确认编辑
-const confirmEdit = async () => {
-  if (!editingValue.value.trim()) {
-    ElMessage.error('内容不能为空')
-    return
-  }
-
-  if (editingType.value === 'title') {
-    // 如果是修改标题，需要二次确认
-    try {
-      await ElMessageBox.confirm(
-        '修改命令称可能会影响现有的命令引用，是否继续？',
-        '确认修改',
-        {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning',
-          customClass: props.isDark ? 'dark-message-box' : ''
-        }
-      )
-      
-      // 发出更新事件
-      emit('updateCommand', {
-        commandPath: editingTitle.value,
-        field: 'name',
-        value: editingValue.value.trim()
-      })
-    } catch {
-      // 用户取消修改
-      editingValue.value = props.command.name
-    }
-  } else {
-    // 直接更新描述
-    emit('updateCommand', {
-      commandPath: editingTitle.value.replace('-desc', ''),
-      field: 'description',
-      value: editingValue.value.trim()
-    })
-  }
-
-  // 出编辑状态
-  editingTitle.value = ''
-  editingValue.value = ''
-}
-
-// 添加参数编辑相关的态
-const editingParam = ref('')
-const editingParamField = ref<'param' | 'type' | 'description' | null>(null)
-const currentEditingParam = ref<Parameter | null>(null)
-
-// 开始编辑参数
-const startParamEdit = (id: string, value: string, field: 'param' | 'type' | 'description', param: Parameter) => {
-  editingParam.value = id
-  editingValue.value = value
-  editingParamField.value = field
-  currentEditingParam.value = param
-}
-
-// 确认参数编辑
-const confirmParamEdit = async (param: Parameter) => {
-  if (!editingValue.value.trim()) {
-    ElMessage.error('内容不能为空')
-    return
-  }
-
-  // 更新参数值
-  if (editingParamField.value) {
-    param[editingParamField.value] = editingValue.value.trim()
-  }
-
-  // 重置编辑状态
-  editingParam.value = ''
-  editingValue.value = ''
-  editingParamField.value = null
-  currentEditingParam.value = null
-}
-
-// 处理必填状态化
-const handleParamRequiredChange = (param: Parameter) => {
-  if (param.required) {
-    param.enabled = true
-  }
-}
-
-// 添加参数
+/**
+ * 添加新参数
+ * 通过弹窗收集参数信息并添加到命令中
+ * 
+ * @param targetCommand 目标命令对象
+ */
 const handleAddParameter = async (targetCommand: Command | SubCommand) => {
   const newParam = {
     param: '',
@@ -1096,6 +905,264 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
   }
 }
 
+/**
+ * 滚动到指定命令位置
+ * 支持平滑滚动和位置偏移
+ * 
+ * @param commandPath 命令路径
+ */
+const scrollToCommand = (commandPath: string) => {
+  // 添加延时确保 DOM 已更新
+  setTimeout(() => {
+    const element = document.getElementById(commandPath)
+    
+    if (element) {
+      const headerHeight = 60  // 导航栏高度
+      const offset = 20       // 额外偏移量
+      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+      
+      window.scrollTo({
+        top: elementPosition - (headerHeight + offset),
+        behavior: 'smooth'
+      })
+    } else {
+      console.warn('Element not found for path:', commandPath)
+      // 检查所有可用的锚点元素
+      const allAnchors = document.querySelectorAll('[id]')
+      
+    }
+  }, 100)
+}
+
+// 折叠状态管理
+const collapsedStates = ref<Set<string>>(new Set())
+
+// 检查是否折叠
+const isCollapsed = (commandPath: string) => {
+  return collapsedStates.value.has(commandPath)
+}
+
+// 监听命令变化，重置折叠状态
+watch(() => props.command, () => {
+  collapsedStates.value.clear()
+}, { deep: true })
+
+// 清空当前命令的输入
+const clearCurrentCommand = () => {
+  // 清空当前命令的所有参数值
+  if (props.command.parameters) {
+    props.command.parameters.forEach(param => param.value = '')
+  }
+}
+
+// 处理返回父命令
+const handleGoToParent = (parentPath: string) => {
+  scrollToCommand(parentPath)
+}
+
+// 清空所有命令的输入
+const clearAllCommands = () => {
+  // 递归清空所有命令的数值
+  const clearParams = (params?: Parameter[]) => {
+    if (params) {
+      params.forEach(param => param.value = '')
+    }
+  }
+
+  // 清空当前命令的参数
+  clearParams(props.command.parameters)
+
+  // 清空子命令的参数
+  if (props.command.subCommands) {
+    props.command.subCommands.forEach(subCmd => {
+      clearParams(subCmd.parameters)
+      if (subCmd.subCommands) {
+        subCmd.subCommands.forEach(subSubCmd => {
+          clearParams(subSubCmd.parameters)
+        })
+      }
+    })
+  }
+}
+
+// 返回上级命令
+const goToParent = (parentId: string) => {
+  const element = document.getElementById(parentId)
+  if (element) {
+    const offset = 20
+    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+    window.scrollTo({
+      top: elementPosition - offset,
+      behavior: 'smooth'
+    })
+  }
+}
+
+// 添加参数输入处的函数
+const handleParamInput = (param: Parameter) => {
+  // 如果输入了值且参数未启用且不是必需参数则自动启用
+  if (param.value && !param.enabled && !param.required) {
+    param.enabled = true
+  }
+  // 如果清空了值且不是必需参数，则自动禁��
+  if (!param.value && !param.required) {
+    param.enabled = false
+  }
+}
+
+// 添加的状态
+const isSubCommandEditorVisible = ref(false)
+const selectedParentCommand = ref('')
+
+// 显示添加子命令对话框
+const showAddSubCommand = (parentCommand: string) => {
+  selectedParentCommand.value = parentCommand
+  isSubCommandEditorVisible.value = true
+}
+
+// 处理添加子命令
+const handleAddSubCommand = (newCommand: Command) => {
+  emit('addSubCommand', {
+    parentCommand: selectedParentCommand.value,
+    command: newCommand
+  })
+}
+
+// 从父组获取所有命令列表
+const existingCommands = computed(() => props.existingCommands || [])
+
+// 添加删除确认方法
+const confirmDelete = async (commandPath: string) => {
+  try {
+    const parts = commandPath.split('-')
+    const message = parts.length > 1 
+      ? '此操作将删除该命令及其所有子命令，是否继续？'
+      : '此操作将删除该命令及其所有子命令，是否继续？'
+
+    await ElMessageBox.confirm(
+      message,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: props.isDark ? 'dark-message-box' : ''
+      }
+    )
+    
+    emit('deleteCommand', commandPath)
+  } catch {
+    // 用户取消删除
+  }
+}
+
+// 添加��辑相关的状态
+const editingTitle = ref('')
+const editingValue = ref('')
+const editingType = ref<'title' | 'description'>('title')
+const titleInputRef = ref<InstanceType<typeof ElInput> | null>(null)
+const descInputRef = ref<InstanceType<typeof ElInput> | null>(null)
+
+// 开始编辑
+const startEdit = (id: string, value: string, type: 'title' | 'description') => {
+  editingTitle.value = type === 'description' ? `${id}-desc` : id
+  editingValue.value = value
+  editingType.value = type
+
+  // 等待 DOM 更新后聚焦输入框
+  nextTick(() => {
+    if (type === 'title') {
+      titleInputRef.value?.focus()
+    } else {
+      descInputRef.value?.focus()
+    }
+  })
+}
+
+// 确认编辑
+const confirmEdit = async () => {
+  if (!editingValue.value.trim()) {
+    ElMessage.error('内容不能为空')
+    return
+  }
+
+  if (editingType.value === 'title') {
+    // 如果是修改标题，需要二次确认
+    try {
+      await ElMessageBox.confirm(
+        '修改命令称可能会影响现有的命令引用，是否继续？',
+        '确认修改',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+          customClass: props.isDark ? 'dark-message-box' : ''
+        }
+      )
+      
+      // 发出更新事件
+      emit('updateCommand', {
+        commandPath: editingTitle.value,
+        field: 'name',
+        value: editingValue.value.trim()
+      })
+    } catch {
+      // 用户取消修改
+      editingValue.value = props.command.name
+    }
+  } else {
+    // 直接更新描述
+    emit('updateCommand', {
+      commandPath: editingTitle.value.replace('-desc', ''),
+      field: 'description',
+      value: editingValue.value.trim()
+    })
+  }
+
+  // 出编辑状态
+  editingTitle.value = ''
+  editingValue.value = ''
+}
+
+// 添加参数编辑相关的态
+const editingParam = ref('')
+const editingParamField = ref<'param' | 'type' | 'description' | null>(null)
+const currentEditingParam = ref<Parameter | null>(null)
+
+// 开始编辑参数
+const startParamEdit = (id: string, value: string, field: 'param' | 'type' | 'description', param: Parameter) => {
+  editingParam.value = id
+  editingValue.value = value
+  editingParamField.value = field
+  currentEditingParam.value = param
+}
+
+// 确认参数编辑
+const confirmParamEdit = async (param: Parameter) => {
+  if (!editingValue.value.trim()) {
+    ElMessage.error('内容不能为空')
+    return
+  }
+
+  // 更新参数值
+  if (editingParamField.value) {
+    param[editingParamField.value] = editingValue.value.trim()
+  }
+
+  // 重置编辑状态
+  editingParam.value = ''
+  editingValue.value = ''
+  editingParamField.value = null
+  currentEditingParam.value = null
+}
+
+// 处理必填状态化
+const handleParamRequiredChange = (param: Parameter) => {
+  if (param.required) {
+    param.enabled = true
+  }
+}
+
 // 删除参数
 const handleDeleteParameter = async (targetCommand: Command | SubCommand, index: number) => {
   try {
@@ -1114,32 +1181,6 @@ const handleDeleteParameter = async (targetCommand: Command | SubCommand, index:
   } catch {
     // 用户取消删除
   }
-}
-
-// 添加 scrollToCommand 方法
-const scrollToCommand = (commandPath: string) => {
-
-  
-  // 添加延时确保 DOM 已更新
-  setTimeout(() => {
-    const element = document.getElementById(commandPath)
-   
-    if (element) {
-      const headerHeight = 60  // 导航栏高度
-      const offset = 20       // 额外偏移量
-      const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
-     
-      window.scrollTo({
-        top: elementPosition - (headerHeight + offset),
-        behavior: 'smooth'
-      })
-    } else {
-      console.warn('Element not found for path:', commandPath)
-      // 检查所有可用的锚点元素
-      const allAnchors = document.querySelectorAll('[id]')
-      
-    }
-  }, 100)
 }
 </script>
 
@@ -1232,7 +1273,7 @@ const scrollToCommand = (commandPath: string) => {
   transform: rotate(-90deg);
 }
 
-/* ���色模式适配 */
+/* 颜色模式适配 */
 .dark-mode .main-command {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }

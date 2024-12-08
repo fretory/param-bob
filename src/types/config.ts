@@ -9,24 +9,23 @@ export interface ToolConfig {
 
 export interface Command {
   name: string;
-  description?: string;
+  description: string;
   tags?: string[];
   parameters?: Parameter[];
   subCommands?: SubCommand[];
 }
 
 export interface SubCommand {
-  name: string;               // 子命令名称，例如: "create"
-  description: string;        // 子命令描述
-  parameters?: Parameter[];    // 二级命令的参数
-  subCommands?: SubSubCommand[]; // 添加第三级命令
+  name: string;
+  description: string;
+  parameters?: Parameter[];
+  subCommands?: SubSubCommand[];
 }
 
-// 新增第三级命令接口
 export interface SubSubCommand {
   name: string;
   description: string;
-  parameters: Parameter[];    // 三级命令的参数
+  parameters: Parameter[];
 }
 
 export interface Parameter {
