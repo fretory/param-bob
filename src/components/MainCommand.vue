@@ -17,6 +17,15 @@
         </div>
         <div v-else class="title-wrapper">
           <h2 class="command-title">{{ command.name }}</h2>
+          <el-tooltip content="复制链接" placement="top">
+            <el-button
+              class="link-btn"
+              type="primary"
+              link
+              :icon="Link"
+              @click.stop="copyLink(command.name)"
+            />
+          </el-tooltip>
           <el-button
             v-if="!isReadOnly"
             class="edit-btn"
@@ -249,6 +258,15 @@
                   <h3 class="sub-command-title" @click.stop="scrollToCommand(`${command.name}-${subCmd.name}`)">
                     {{ command.name }} {{ subCmd.name }}
                   </h3>
+                  <el-tooltip content="复制链接" placement="top">
+                    <el-button
+                      class="link-btn"
+                      type="primary"
+                      link
+                      :icon="Link"
+                      @click.stop="copyLink(`${command.name}-${subCmd.name}`)"
+                    />
+                  </el-tooltip>
                   <el-button
                     v-if="!isReadOnly"
                     class="edit-btn"
@@ -455,6 +473,15 @@
                         </el-icon>
                         <div class="title-wrapper">
                           <h4 class="sub-sub-command-title">{{ command.name }} {{ subCmd.name }} {{ subSubCmd.name }}</h4>
+                          <el-tooltip content="复制链接" placement="top">
+                            <el-button
+                              class="link-btn"
+                              type="primary"
+                              link
+                              :icon="Link"
+                              @click.stop="copyLink(`${command.name}-${subCmd.name}-${subSubCmd.name}`)"
+                            />
+                          </el-tooltip>
                           <el-button
                             v-if="!isReadOnly"
                             class="edit-btn"
@@ -1033,7 +1060,7 @@ const handleAddParameter = async (targetCommand: Command | SubCommand) => {
               background-color: var(--el-input-bg-color);
               margin: 0;
             `,
-            placeholder: '请输入参��描述'
+            placeholder: '请输入参数描述'
           })
         ])
       ]),
@@ -1205,7 +1232,7 @@ const scrollToCommand = (commandPath: string) => {
   transform: rotate(-90deg);
 }
 
-/* 暗色模式适配 */
+/* ���色模式适配 */
 .dark-mode .main-command {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
@@ -1577,5 +1604,25 @@ const scrollToCommand = (commandPath: string) => {
 .is-read-only .command-actions,
 .is-read-only .param-cell .edit-btn {
   display: none;
+}
+
+.link-btn {
+  opacity: 0;
+  transition: opacity 0.3s;
+  padding: 4px;
+  font-size: 14px;
+}
+
+.title-wrapper:hover .link-btn {
+  opacity: 1;
+}
+
+/* 暗色模式下的链接按钮样式 */
+.dark-mode .link-btn {
+  color: var(--text-secondary);
+}
+
+.dark-mode .link-btn:hover {
+  color: var(--el-color-primary);
 }
 </style> 
