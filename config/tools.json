@@ -1,0 +1,147 @@
+{
+  "name": "Tools CLI",
+  "description": "Command line tools",
+  "globalParameters": [
+    {
+      "param": "verbose",
+      "type": "boolean",
+      "description": "显示详细信息",
+      "default": false
+    },
+    {
+      "param": "output",
+      "type": "string",
+      "description": "输出格式",
+      "default": "json"
+    }
+  ],
+  "commands": [
+    {
+      "name": "version",
+      "description": "显示版本信息",
+      "parameters": [
+        {
+          "param": "format",
+          "type": "string",
+          "description": "输出格式",
+          "required": false,
+          "default": "text"
+        }
+      ],
+      "tags": ["system", "info"]
+    },
+    {
+      "name": "node",
+      "description": "节点管理",
+      "parameters": [
+        {
+          "param": "namespace",
+          "type": "string",
+          "description": "命名空间",
+          "required": false,
+          "default": "default"
+        }
+      ],
+      "tags": ["node", "cluster"],
+      "subCommands": [
+        {
+          "name": "list",
+          "description": "列出节点",
+          "parameters": [
+            {
+              "param": "status",
+              "type": "string",
+              "description": "节点状态过滤",
+              "required": false
+            }
+          ]
+        },
+        {
+          "name": "remove",
+          "description": "删除节点",
+          "parameters": [
+            {
+              "param": "force",
+              "type": "boolean",
+              "description": "强制删除",
+              "required": false
+            },
+            {
+              "param": "node-name",
+              "type": "string",
+              "description": "节点名称",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "service",
+      "description": "服务相关命令",
+      "tags": ["service", "container"],
+      "subCommands": [
+        {
+          "name": "scale",
+          "description": "扩缩容服务",
+          "parameters": [
+            {
+              "param": "replicas",
+              "type": "number",
+              "description": "副本数量",
+              "required": true
+            },
+            {
+              "param": "service-name",
+              "type": "string",
+              "description": "服务名称",
+              "required": true
+            }
+          ]
+        },
+        {
+          "name": "update",
+          "description": "更新服务",
+          "subCommands": [
+            {
+              "name": "image",
+              "description": "更新服务镜像",
+              "parameters": [
+                {
+                  "param": "service-name",
+                  "type": "string",
+                  "description": "服务名称",
+                  "required": true
+                },
+                {
+                  "param": "image",
+                  "type": "string",
+                  "description": "新的镜像",
+                  "required": true
+                }
+              ]
+            },
+            {
+              "name": "config",
+              "description": "更新服务配置",
+              "parameters": [
+                {
+                  "param": "service-name",
+                  "type": "string",
+                  "description": "服务名称",
+                  "required": true
+                },
+                {
+                  "param": "config-file",
+                  "type": "string",
+                  "description": "配置文件路径",
+                  "required": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 
