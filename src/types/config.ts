@@ -8,11 +8,11 @@ export interface ToolConfig {
 }
 
 export interface Command {
-  name: string;                // 命令名称，例如: "topic"
-  description: string;         // 命令描述
-  tags: string[];             // 命令标签，例如: ["#topic", "#message"]
-  parameters?: Parameter[];    // 一级命令的参数
-  subCommands?: SubCommand[];  // 子命令列表
+  name: string;
+  description?: string;
+  tags?: string[];
+  parameters?: Parameter[];
+  subCommands?: SubCommand[];
 }
 
 export interface SubCommand {

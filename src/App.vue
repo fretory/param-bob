@@ -257,14 +257,22 @@ const globalParamsWidth = ref(parseInt(localStorage.getItem('paramsWidth') || '3
 const minWidth = 250
 const maxWidth = 500
 
-// 监听度变化并保存
+// 监听度变��并保存
 watch(globalParamsWidth, (newValue) => {
   localStorage.setItem('paramsWidth', newValue.toString())
 })
 
 // 配置数据
 const toolConfig = ref<ToolConfig | null>(null)
-const commands = computed(() => toolConfig.value?.commands || [])
+const commands = computed(() => {
+  if (!toolConfig.value?.commands) return []
+  
+  // 创建副本以避免修改原始数据
+  const sortedCommands = [...toolConfig.value.commands]
+  
+  // 按名称排序
+  return sortedCommands.sort((a, b) => a.name.localeCompare(b.name))
+})
 
 // 加载配置文件
 onMounted(async () => {
@@ -361,9 +369,14 @@ const onFileSelected = async (event: Event) => {
         ? JSON.parse(content)
         : yaml.load(content)
       
+      // 对加载的配置进行排序
+      if (config.commands) {
+        config.commands.sort((a: Command, b: Command) => a.name.localeCompare(b.name))
+      }
+      
       toolConfig.value = config
       
-      // 重置并初始化全局参��
+      // 重置并初始化全局参数
       if (toolSelector.value) {
         if (config.globalParameters) {
           toolSelector.value.parameters = config.globalParameters.map((param: { param: any; value: any; default: any }) => ({
@@ -372,7 +385,6 @@ const onFileSelected = async (event: Event) => {
             enabled: true
           }))
         } else {
-          // 如果新配置没有全局参数则清空
           toolSelector.value.parameters = []
         }
       }
@@ -384,7 +396,6 @@ const onFileSelected = async (event: Event) => {
     }
   }
   
-  // 清除选择，以便可以重复选择同一个文件
   input.value = ''
 }
 
@@ -396,7 +407,13 @@ const handleFileExport = () => {
   }
 
   try {
-    const content = yaml.dump(toolConfig.value)
+    // 创建要导出的配置副本
+    const exportConfig = {
+      ...toolConfig.value,
+      commands: [...toolConfig.value.commands] // 保持原始顺序
+    }
+    
+    const content = yaml.dump(exportConfig)
     const blob = new Blob([content], { type: 'text/yaml' })
     const url = URL.createObjectURL(blob)
     
@@ -526,6 +543,7 @@ const showCommandEditor = () => {
 const handleAddCommand = (command: Command) => {
   if (!toolConfig.value) return
   
+  // 直接添加到末尾，保持原始顺序
   toolConfig.value.commands.push(command)
   ElMessage.success('命令添加成功')
 }
@@ -987,7 +1005,7 @@ body {
   color: var(--el-color-primary);
 }
 
-/* 调整主内容区域左侧边距 */
+/* 调整主内容区域左���边距 */
 .main-content {
   padding: 20px 40px 20px 60px; /* 增加左侧内边距，为浮动按钮留空间 */
 }
@@ -1118,7 +1136,7 @@ body {
   padding: 12px 0;
 }
 
-/* 一级菜单项 */
+/* ���级菜单项 */
 .command-nav .el-menu-item,
 .command-nav .el-sub-menu__title {
   height: 40px;
@@ -1256,7 +1274,7 @@ body {
   background-color: var(--primary-bg);
 }
 
-/* 底部控制栏固定 */
+/* ���部控制栏固定 */
 .nav-control {
   flex-shrink: 0;
   height: 40px;
