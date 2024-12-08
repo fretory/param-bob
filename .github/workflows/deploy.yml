@@ -24,6 +24,25 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Check Config Files
+        run: |
+          if [ ! -d "config" ]; then
+            mkdir config
+          fi
+          if [ ! -f "config/tools.yaml" ]; then
+            echo "Creating default config file..."
+            echo "- name: 示例工具
+              description: 这是一个示例工具配置
+              commands:
+                - name: 示例命令
+                  template: echo 'Hello World'
+                  params:
+                    - name: message
+                      description: 要显示的消息
+                      type: string
+                      default: Hello World" > config/tools.yaml
+          fi
+
       - name: Type Check
         run: npm run type-check
         continue-on-error: true

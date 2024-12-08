@@ -1,24 +1,22 @@
 import yaml from 'js-yaml'
-import type { ToolConfig, Parameter } from '../types/config'
+import { ToolConfig } from '@/types/config'
 
-export async function loadConfig(path: string): Promise<ToolConfig> {
-  const response = await fetch(path)
-  const content = await response.text()
-  
-  let config: ToolConfig
-  if (path.endsWith('.yaml') || path.endsWith('.yml')) {
-    config = yaml.load(content) as ToolConfig
-  } else {
-    config = JSON.parse(content)
+export async function loadConfig(): Promise<ToolConfig[]> {
+  try {
+    // 根据环境构建正确的配置文件路径
+    const basePath = import.meta.env.PROD ? '/param-bob' : ''
+    const configPath = `${basePath}/config/tools.yaml`
+    
+    const response = await fetch(configPath)
+    if (!response.ok) {
+      throw new Error(`Failed to load config: ${response.statusText}`)
+    }
+    
+    const yamlText = await response.text()
+    const config = yaml.load(yamlText) as ToolConfig[]
+    return config
+  } catch (error) {
+    console.error('Error loading config:', error)
+    return []
   }
-
-  // 初始化全局参数的值
-  if (config.globalParameters) {
-    config.globalParameters = config.globalParameters.map(param => ({
-      ...param,
-      value: param.default || ''
-    }))
-  }
-
-  return config
 } 
