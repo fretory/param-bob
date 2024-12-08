@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - master  # 改为 master 分支
+      - master
 
 jobs:
   build-and-deploy:
@@ -17,9 +17,14 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Type Check
+        run: npm run type-check
+        continue-on-error: true
 
       - name: Build
         run: npm run build
